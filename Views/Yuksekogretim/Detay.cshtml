@@ -70,15 +70,19 @@
         </div>
         <div class="kpi">
             <div class="kpi-etiket">Öğrenci</div>
-            <div class="kpi-deger num">@(Model.OgrenciVar ? Model.Ogrenci!.toplam_toplam!.Value.ToString("N0") : "—")</div>
+            <div class="kpi-deger num">@(Model.ToplamOgrenci > 0 ? Model.ToplamOgrenci.ToString("N0") : "—")</div>
             <div class="kpi-alt">
-                @if (Model.OgrenciVar)
+                @if (Model.LisansustuVar)
                 {
-                    @($"{Model.Ogrenci!.yeni_kayit_toplam ?? 0:N0} yeni kayıt")
+                    @($"{Model.Lisansustu!.toplam_toplam ?? 0:N0} lisansüstü dahil")
+                }
+                else if (Model.OgrenciVar)
+                {
+                    @("Önlisans ve lisans")
                 }
                 else
                 {
-                    @("Önlisans ve lisans verisi yok")
+                    @("Öğrenci verisi yok")
                 }
             </div>
         </div>
@@ -149,13 +153,13 @@
         </div>
 
         <!-- ÖĞRENCİ VE MEZUN -->
-        @if (Model.OgrenciVar || Model.MezunVar)
+        @if (Model.OgrenciVar || Model.MezunVar || Model.LisansustuVar)
         {
             <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="kart-baslik">
                         <div class="card-title">Öğrenci ve mezun</div>
-                        <div class="kart-alt">Önlisans ve lisans düzeyi</div>
+                        <div class="kart-alt">Öğrenim düzeyine göre</div>
                     </div>
                     <div class="card-body">
                         <div class="lejant mb-3">
@@ -169,6 +173,13 @@
                             {
                                 satirlar.Add(("Öğrenci", Model.Ogrenci!.toplam_erkek ?? 0, Model.Ogrenci.toplam_kadin ?? 0));
                                 satirlar.Add(("Yeni kayıt", Model.Ogrenci.yeni_kayit_erkek ?? 0, Model.Ogrenci.yeni_kayit_kadin ?? 0));
+                            }
+                            if (Model.LisansustuVar)
+                            {
+                                satirlar.Add(("Yüksek lisans", Model.Lisansustu!.yuksek_lisans_erkek ?? 0,
+                                                               Model.Lisansustu.yuksek_lisans_kadin ?? 0));
+                                satirlar.Add(("Doktora", Model.Lisansustu.doktora_erkek ?? 0,
+                                                         Model.Lisansustu.doktora_kadin ?? 0));
                             }
                             if (Model.MezunVar)
                             {

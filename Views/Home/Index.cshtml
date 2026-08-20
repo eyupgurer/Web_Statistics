@@ -45,11 +45,55 @@
                 <div class="kpi-alt">@Model.ToplamKadin.ToString("N0") kadın öğretim elemanı</div>
             </div>
             <div class="kpi">
-                <div class="kpi-etiket">Kurum başına ortalama</div>
-                <div class="kpi-deger num">@Model.KurumBasinaOrtalama.ToString("N0")</div>
-                <div class="kpi-alt">Öğretim elemanı sayısı</div>
+                <div class="kpi-etiket">Öğrenci</div>
+                <div class="kpi-deger num">@(Model.OgrenciVar ? Model.ToplamOgrenci.ToString("N0") : "—")</div>
+                <div class="kpi-alt">Tüm öğrenim düzeyleri</div>
             </div>
         </div>
+
+        @if (Model.OgrenciVar)
+        {
+            <div class="card mb-4">
+                <div class="kart-baslik">
+                    <div class="card-title">Öğrenim düzeyine göre öğrenci</div>
+                    <div class="kart-alt">
+                        Önlisans ve lisans ile lisansüstü YÖK'te ayrı tablolarda yayımlanıyor
+                    </div>
+                </div>
+                <div class="card-body">
+                    @{
+                        var duzeyler = new (string Ad, int Sayi, string Renk)[]
+                        {
+                            ("Önlisans ve lisans", Model.OnlisansLisansOgrenci, "var(--seri-1)"),
+                            ("Yüksek lisans",      Model.YuksekLisans,          "var(--seri-2)"),
+                            ("Doktora",            Model.Doktora,              "var(--seri-3)"),
+                        }.Where(d => d.Sayi > 0).ToArray();
+                        var duzeyToplam = Math.Max(Model.ToplamOgrenci, 1);
+                    }
+                    @foreach (var d in duzeyler)
+                    {
+                        var pay = (double)d.Sayi / duzeyToplam * 100;
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-baseline mb-2">
+                                <span class="d-flex align-items-center gap-2" style="font-size:13.5px;">
+                                    <span class="seri-nokta" style="background:@d.Renk;"></span>@d.Ad
+                                </span>
+                                <span class="num" style="font-size:13.5px;">
+                                    <strong>@d.Sayi.ToString("N0")</strong>
+                                    <span style="color:var(--metin-soluk);">
+                                        %@pay.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="cubuk">
+                                <div class="cubuk-dolu"
+                                     style="width:@pay.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)%; background:@d.Renk;"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
 
         <div class="row g-4">
             <!-- TÜR DAĞILIMI -->

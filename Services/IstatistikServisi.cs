@@ -196,6 +196,18 @@ namespace YokIstatistikWeb.Services
                 ToplamOgretimElemani = hepsi.Sum(u => u.toplam_toplam ?? 0),
             };
 
+            // Önlisans/lisans (T012) ve lisansüstü (T022) ayrı tablolar;
+            // ana sayfadaki öğrenci sayısı ikisini birden kapsamalı.
+            if (_context.KoleksiyonVar(MongoDbContext.Ogrenci, yil))
+                model.OnlisansLisansOgrenci = Ogrenciler(yil).Sum(u => u.toplam_toplam ?? 0);
+
+            if (_context.KoleksiyonVar(MongoDbContext.Lisansustu, yil))
+            {
+                var lu = Lisansustu(yil);
+                model.YuksekLisans = lu.Sum(u => u.yuksek_lisans_toplam ?? 0);
+                model.Doktora = lu.Sum(u => u.doktora_toplam ?? 0);
+            }
+
             model.Turler = hepsi
                 .GroupBy(u => u.tur ?? "")
                 .Select(g => new TurDagilimi
@@ -269,6 +281,10 @@ namespace YokIstatistikWeb.Services
         public List<MezunKurum> Mezunlar(string yil, string? arama = null,
             string? sehir = null, string? tur = null) =>
             FiltreliListe<MezunKurum>(MongoDbContext.Mezun, yil, arama, sehir, tur);
+
+        public List<LisansustuKurum> Lisansustu(string yil, string? arama = null,
+            string? sehir = null, string? tur = null) =>
+            FiltreliListe<LisansustuKurum>(MongoDbContext.Lisansustu, yil, arama, sehir, tur);
 
         public List<AkademikBirimSayisi> AkademikBirimler(string yil) =>
             _context.Koleksiyon<AkademikBirimSayisi>(MongoDbContext.AkademikBirim, YilDogrula(yil))
@@ -362,6 +378,7 @@ namespace YokIstatistikWeb.Services
             model.Ogrenci = AdIle<OgrenciKurum>(MongoDbContext.Ogrenci);
             model.Mezun = AdIle<MezunKurum>(MongoDbContext.Mezun);
             model.YabanciUyruklu = AdIle<Universite>(MongoDbContext.YabanciUyruklu);
+            model.Lisansustu = AdIle<LisansustuKurum>(MongoDbContext.Lisansustu);
 
             return model;
         }

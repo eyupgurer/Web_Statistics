@@ -252,7 +252,19 @@ def duzeni_coz(sayfa, plan: TabloPlani) -> TabloPlani:
         degerler = [bool(_temiz(sayfa.cell_value(r, ilce_kolonu))) for r in ornek]
         ayirt_edici = any(degerler) and not all(degerler)
 
-    belirtec = "ilce" if (dolu / toplam_ornek > 0.6 and ayirt_edici) else "tur"
+    tur_ayirt_ediyor = dolu / toplam_ornek <= 0.6
+
+    if not tur_ayirt_ediyor and not ayirt_edici:
+        # Ne tür ne ilçe kolonu üniversiteyi birimden ayırıyor (2018-2019 T22'de
+        # ikisi de her satırda dolu). Geriye yalnızca ada bakmak kalıyor ki o da
+        # güvenilmez: İzmir Yüksek Teknoloji ENSTİTÜSÜ bir üniversite, Fen
+        # Bilimleri ENSTİTÜSÜ ise ona bağlı birim. Tahmin edip yanlış veri
+        # üretmektense dosyayı reddediyoruz.
+        raise TabloDuzeniDegisti(
+            "üniversite satırı ayırt edilemiyor: tür ve ilçe kolonları her "
+            "satırda dolu, ayırt edici bir kolon yok")
+
+    belirtec = "ilce" if (not tur_ayirt_ediyor and ayirt_edici) else "tur"
 
     # Üçlü sayısı yetiyorsa doğrudan onlarla eşle; yetmiyorsa eski kaydırma
     # davranışına düş (ör. başlık satırı beklenenden farklıysa).
@@ -405,6 +417,29 @@ MEZUN_PLANI = TabloPlani(
 )
 
 
+# T022: lisansüstü öğrenci. İki blok (yeni kayıt / toplam öğrenci), her biri
+# yüksek lisans + doktora + toplam. 13. kolonda bloklar arası boşluk var;
+# ölçümler E/K/T üçlülerinden eşlendiği için sorun olmuyor.
+LISANSUSTU_PLANI = TabloPlani(
+    baslik_anahtarlari=["YÜKSEK LİSANS", "DOKTORA", "TOPLAM",
+                        "YÜKSEK LİSANS", "DOKTORA", "TOPLAM"],
+    ilce_kolonu=3,
+    olcumler=[
+        Olcum("yeni_kayit_yuksek_lisans", 4),
+        Olcum("yeni_kayit_doktora", 7),
+        Olcum("yeni_kayit", 10),
+        Olcum("yuksek_lisans", 14),
+        Olcum("doktora", 17),
+        Olcum("toplam", 20),
+    ],
+)
+
+
+def ayristir_lisansustu(yol: Path, donem: str) -> list[dict]:
+    """T022 — enstitülere göre yüksek lisans ve doktora öğrenci sayıları."""
+    return universite_bloklari(yol, donem, LISANSUSTU_PLANI)
+
+
 def ayristir_unvan(yol: Path, donem: str) -> list[dict]:
     """T028 (tüm öğretim elemanları) ve T035 (yabancı uyruklu) — aynı düzen."""
     return universite_bloklari(yol, donem, UNVAN_PLANI)
@@ -457,6 +492,7 @@ AYRISTIRICILAR = {
     "T012": (ayristir_ogrenci,        "Önlisans ve lisans öğrenci sayıları"),
     "M005": (ayristir_mezun,          "Mezun sayıları"),
     "T107": (ayristir_birim_sayilari, "Türlerine göre akademik birim sayıları"),
+    "T022": (ayristir_lisansustu,     "Lisansüstü öğrenci sayıları"),
 }
 
 
@@ -501,6 +537,7 @@ def dogrula(yol: Path, kayitlar: list[dict], plan: TabloPlani) -> bool:
 PLANLAR = {
     "T028": UNVAN_PLANI, "T035": UNVAN_PLANI,
     "T012": OGRENCI_PLANI, "M005": MEZUN_PLANI,
+    "T022": LISANSUSTU_PLANI,
 }
 
 

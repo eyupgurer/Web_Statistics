@@ -12,6 +12,7 @@ namespace YokIstatistikWeb.Models
         public OgrenciKurum? Ogrenci { get; set; }
         public MezunKurum? Mezun { get; set; }
         public Universite? YabanciUyruklu { get; set; }
+        public LisansustuKurum? Lisansustu { get; set; }
 
         public string Yil { get; set; } = "";
         public string YilGoster { get; set; } = "";
@@ -19,6 +20,11 @@ namespace YokIstatistikWeb.Models
         public bool OgrenciVar => (Ogrenci?.toplam_toplam ?? 0) > 0;
         public bool MezunVar => (Mezun?.toplam_toplam ?? 0) > 0;
         public bool YabanciVar => (YabanciUyruklu?.toplam_toplam ?? 0) > 0;
+        public bool LisansustuVar => (Lisansustu?.toplam_toplam ?? 0) > 0;
+
+        /// <summary>Önlisans+lisans ile lisansüstünün toplamı.</summary>
+        public int ToplamOgrenci =>
+            (Ogrenci?.toplam_toplam ?? 0) + (Lisansustu?.toplam_toplam ?? 0);
 
         /// <summary>
         /// Öğretim elemanı başına öğrenci. Yükseköğretimde temel kalite
@@ -29,7 +35,7 @@ namespace YokIstatistikWeb.Models
             get
             {
                 var eleman = OgretimElemani.toplam_toplam ?? 0;
-                var ogrenci = Ogrenci?.toplam_toplam ?? 0;
+                var ogrenci = ToplamOgrenci;
                 return eleman > 0 && ogrenci > 0 ? (double)ogrenci / eleman : null;
             }
         }

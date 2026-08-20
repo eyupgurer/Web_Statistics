@@ -17,6 +17,15 @@ namespace YokIstatistikWeb.Models
         public int KurumBasinaOrtalama =>
             ToplamKurum > 0 ? (int)Math.Round((double)ToplamOgretimElemani / ToplamKurum) : 0;
 
+        // Öğrenci sayıları iki ayrı tablodan geliyor: T012 (önlisans+lisans)
+        // ve T022 (yüksek lisans + doktora).
+        public int OnlisansLisansOgrenci { get; set; }
+        public int YuksekLisans { get; set; }
+        public int Doktora { get; set; }
+
+        public int ToplamOgrenci => OnlisansLisansOgrenci + YuksekLisans + Doktora;
+        public bool OgrenciVar => ToplamOgrenci > 0;
+
         public List<TurDagilimi> Turler { get; set; } = new();
         public List<UnvanDagilimi> Unvanlar { get; set; } = new();
 
