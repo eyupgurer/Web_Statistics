@@ -82,6 +82,25 @@ dotnet run
 
 http://localhost:5220 adresinde açılır.
 
+## Otomatik güncelleme
+
+`.github/workflows/veri-guncelle.yml` iki iş içerir:
+
+| İş | Ne zaman | Ne yapar |
+|---|---|---|
+| **Yeni öğretim yılı kontrolü** | Ayda bir (otomatik) | Portalda yalnızca yıl menüsünü okur. `config.YEARS`'ten daha yeni bir yıl çıkmışsa issue açar. Tek sayfa yüklemesi. |
+| **Veriyi çek ve PR aç** | Elle tetiklenir | Tam scrape + parse yapar, `data/processed` değiştiyse pull request açar. |
+
+Aylık iş bilerek **tam scrape yapmıyor**: YÖK verisi yılda bir yayımlanıyor,
+her ay ~100 MB indirmek hem gereksiz hem de kamu sunucusuna yük. Aylık kontrol
+yalnızca "yeni yıl çıktı mı" sorusunu yanıtlıyor; indirme kararı size kalıyor.
+
+Elle çalıştırmak için: **Actions → YÖK verisi → Run workflow**, `tam_guncelleme`
+kutusunu işaretleyin. İsterseniz `yillar` alanına virgülle ayrılmış yıl
+verebilirsiniz (`2025-2026,2026-2027`).
+
+> İş akışı yalnızca deponun varsayılan dalından zamanlanmış olarak çalışır.
+
 ## Veriyi yeniden çekmek
 
 Yalnızca YÖK yeni bir öğretim yılı yayımladığında gerekir:
@@ -92,6 +111,12 @@ cd tools/yok-scraper
 ./.venv/bin/python -m yok_scraper scrape    # ham .xls indir
 ./.venv/bin/python -m yok_scraper parse     # normalize et
 ./.venv/bin/python -m yok_scraper seed      # MongoDB'ye yükle
+```
+
+Portalda yeni bir öğretim yılı çıkıp çıkmadığını görmek için:
+
+```bash
+./.venv/bin/python -m yok_scraper years
 ```
 
 ## Proje yapısı
