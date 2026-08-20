@@ -12,14 +12,37 @@
     var enBuyukler = Model.OrderByDescending(Toplam).Take(10).ToList();
     var enYuksek = enBuyukler.FirstOrDefault() is { } ilk ? Math.Max(Toplam(ilk), 1) : 1;
 
-    var turRenkleri = new Dictionary<string, string>
+    // CSS değişkeni HTML tarafı için; Google Charts gerçek hex istiyor,
+    // ikisi aynı paletten gelmeli yoksa lejantla grafik eşleşmez.
+    var turRenkleri = new Dictionary<string, (string Css, string Hex)>
     {
-        ["DEVLET"] = "var(--seri-1)", ["VAKIF"] = "var(--seri-2)", ["VAKIF MYO"] = "var(--seri-3)"
+        ["DEVLET"]    = ("var(--seri-1)", "#2a78d6"),
+        ["VAKIF"]     = ("var(--seri-2)", "#eb6834"),
+        ["VAKIF MYO"] = ("var(--seri-3)", "#1baf7a"),
     };
-    string TurRengi(string? t) => t is not null && turRenkleri.TryGetValue(t, out var r) ? r : "var(--metin-soluk)";
+    string TurRengi(string? t) =>
+        t is not null && turRenkleri.TryGetValue(t, out var r) ? r.Css : "var(--metin-soluk)";
+    string TurHex(string? t) =>
+        t is not null && turRenkleri.TryGetValue(t, out var r) ? r.Hex : "#8a94a3";
 
-    var grafikVerisi = System.Text.Json.JsonSerializer.Serialize(
-        enBuyukler.Select(u => new { ad = u.universite, deger = Toplam(u) }));
+    // Pasta, sağdaki "en çok öğretim elemanı" listesinin aynısını göstermesin.
+    // Sayfanın başka yerde vermediği kırılım: tür dağılımı (filtreye göre).
+    var turDagilimi = Model
+        .GroupBy(u => u.tur ?? "")
+        .Select(g => new
+        {
+            ad = IstatistikServisi.TurGoster(g.Key),
+            kurum = g.Count(),
+            deger = g.Sum(Toplam),
+            renk = TurRengi(g.Key),
+            renkKodu = TurHex(g.Key),
+        })
+        .Where(t => t.deger > 0)
+        .OrderByDescending(t => t.deger)
+        .ToList();
+
+    var turToplami = Math.Max(turDagilimi.Sum(t => t.deger), 1);
+    var grafikVerisi = System.Text.Json.JsonSerializer.Serialize(turDagilimi);
 }
 
 <div class="page-header">
@@ -160,9 +183,34 @@
             </div>
 
             <div class="chart-container">
-                <h5>Dağılım</h5>
-                <div class="kart-alt mb-3">İlk 10 kurumun payı</div>
-                <div id="pasta" style="width:100%; height:300px;"></div>
+                <h5>Türlerine göre dağılım</h5>
+                <div class="kart-alt mb-3">Filtreye uyan kurumların öğretim elemanı payı</div>
+                <div id="pasta" style="width:100%; height:240px;"></div>
+
+                @* Kimlik yalnızca renkle taşınmasın: her dilim adı ve sayısıyla
+                   burada da yazılı. Üstüne gelmeye gerek kalmıyor. *@
+                <div class="mt-3">
+                    @foreach (var t in turDagilimi)
+                    {
+                        var pay = (double)t.deger / turToplami * 100;
+                        <div class="d-flex align-items-center justify-content-between gap-2 py-1"
+                             style="border-top:1px solid var(--cizgi-acik);">
+                            <span class="d-flex align-items-center gap-2" style="font-size:12.5px;">
+                                <span class="seri-nokta" style="background:@t.renk;"></span>
+                                @t.ad
+                                <span class="num" style="color:var(--metin-soluk); font-size:11.5px;">
+                                    @t.kurum kurum
+                                </span>
+                            </span>
+                            <span class="num" style="font-size:12.5px;">
+                                <strong>@t.deger.ToString("N0")</strong>
+                                <span style="color:var(--metin-soluk);">
+                                    %@pay.ToString("N1")
+                                </span>
+                            </span>
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -171,28 +219,31 @@
 @section Scripts {
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <script>
-        const enBuyukler = @Html.Raw(grafikVerisi);
+        const turler = @Html.Raw(grafikVerisi);
 
         // language: 'tr' -> binlik ayıracı nokta; sitenin geri kalanıyla tutarlı
         google.charts.load('current', { packages: ['corechart'], language: 'tr' });
         google.charts.setOnLoadCallback(function () {
-            if (!enBuyukler.length) return;
+            if (!turler.length) return;
 
             const veri = new google.visualization.DataTable();
-            veri.addColumn('string', 'Üniversite');
+            veri.addColumn('string', 'Tür');
             veri.addColumn('number', 'Öğretim elemanı');
-            enBuyukler.forEach(u => veri.addRow([u.ad, u.deger]));
+            turler.forEach(t => veri.addRow([t.ad, t.deger]));
 
             new google.visualization.PieChart(document.getElementById('pasta')).draw(veri, {
-                // Doğrulanmış kategorik palet; sıra sabit, döngüye girmiyor
-                colors: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4',
-                         '#4a3aa7', '#e34948', '#008300', '#5b9add', '#c98500'],
-                pieHole: 0.45,
-                chartArea: { width: '92%', height: '86%' },
+                // Renkler lejantla birebir aynı olmalı, yoksa eşleşme kopar.
+                colors: turler.map(t => t.renkKodu),
+                pieHole: 0.55,
+                // Kap sınırına kadar doldurulmuyor: tooltip taştığında grafik
+                // yeniden çizilip titriyordu.
+                chartArea: { left: 10, top: 10, width: '80%', height: '80%' },
                 legend: { position: 'none' },
                 pieSliceText: 'none',
+                fontName: 'IBM Plex Sans',
                 tooltip: { textStyle: { fontName: 'IBM Plex Sans', fontSize: 12 } },
-                backgroundColor: 'transparent'
+                backgroundColor: 'transparent',
+                enableInteractivity: true
             });
         });
     </script>
