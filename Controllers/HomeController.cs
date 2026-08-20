@@ -8,43 +8,41 @@ namespace YokIstatistikWeb.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-        private readonly UniversiteService _universiteService;
+        private readonly IstatistikServisi _servis;
 
-        public HomeController(ILogger<HomeController> logger, UniversiteService universiteService)
+        public HomeController(ILogger<HomeController> logger, IstatistikServisi servis)
         {
             _logger = logger;
-            _universiteService = universiteService ?? throw new ArgumentNullException(nameof(universiteService));
+            _servis = servis;
         }
 
         [Route("")]
-        public IActionResult Index()
+        public IActionResult Index(string? year)
         {
-            var universiteler = _universiteService.GetAll();
-            
-            var devlet = universiteler.Count(u => u.tur.ToUpper() == "DEVLET");
-            var vakif = universiteler.Count(u => u.tur.ToUpper() == "VAKIF");
-            var vakifMyo = universiteler.Count(u => u.tur.ToUpper().Contains("VAKIF MYO") || u.tur.ToUpper().Contains("MYO"));
-            
-            // Tabloda vakıflar birleşik gösterilecek
-            
-            var toplam = universiteler.Count;
+            var yil = IstatistikServisi.YilDogrula(year);
 
+            var (toplam, devlet, vakif, vakifMyo) = _servis.KurumSayilari(yil);
+
+            ViewBag.Yil = yil;
+            ViewBag.YilGoster = IstatistikServisi.YilGoster(yil);
+            ViewBag.Toplam = toplam;
             ViewBag.Devlet = devlet;
             ViewBag.Vakif = vakif;
             ViewBag.VakifMyo = vakifMyo;
-            ViewBag.Toplam = toplam;
+            ViewBag.VeriVar = toplam > 0;
 
             return View();
         }
 
-        public IActionResult Privacy()
-        {
-            return View();
-        }
+        public IActionResult Privacy() => View();
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
+            var hataOzelligi = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+            if (hataOzelligi is not null)
+                _logger.LogError(hataOzelligi.Error, "İşlenmemiş hata: {Yol}", HttpContext.Request.Path);
+
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
     }

@@ -1,43 +1,33 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using MongoDB.Driver;
-using YokIstatistikWeb.Models;
-using Newtonsoft.Json; // varsa
+using Microsoft.AspNetCore.Mvc;
+using YokIstatistikWeb.Services;
 
-
-
-
-public class SehirController : Controller
+namespace YokIstatistikWeb.Controllers
 {
-    private readonly MongoDbContext _context;
-    public SehirController(MongoDbContext context)
+    public class SehirController : Controller
     {
-        _context = context;
+        private readonly IstatistikServisi _servis;
+        private readonly ILogger<SehirController> _logger;
+
+        public SehirController(IstatistikServisi servis, ILogger<SehirController> logger)
+        {
+            _servis = servis;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Şehir bazlı öğretim elemanı haritası.
+        /// Artık yıl parametresi alıyor; önceden sabit 2024_2025 koleksiyonuna bağlıydı.
+        /// </summary>
+        public IActionResult Grafik(string? year)
+        {
+            var yil = IstatistikServisi.YilDogrula(year);
+            var veriler = _servis.SehirDagilimi(yil);
+
+            _logger.LogInformation("{Yil}: {Sayi} şehir için veri hazırlandı", yil, veriler.Count);
+
+            ViewBag.Yil = yil;
+            ViewBag.YilGoster = IstatistikServisi.YilGoster(yil);
+            return View(veriler);
+        }
     }
-
-    public IActionResult Grafik()
-    {
-        var liste = _context.Universiteler.Find(_ => true).ToList();
-
-        System.Diagnostics.Debug.WriteLine("MongoDB'den gelen üniversite sayısı: " + liste.Count);
-
-
-        var veriler = liste
-            .GroupBy(u => u.sehir)
-            .Select(g => new SehirVeriViewModel
-            {
-                Sehir = g.Key,
-                Toplam = g
-                    .SelectMany(u => u.birimler ?? new List<Birim>()) // <-- null koruması
-                    .Sum(b => b.toplam_toplam ?? 0)
-
-            })
-            .ToList();
-       
-
-
-        return View(veriler);
-    }
-
-
-
 }

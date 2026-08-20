@@ -1,23 +1,20 @@
-using YokIstatistikWeb.Models; // <-- mevcut
-using YokIstatistikWeb.Services; // <-- mevcut
-using YokIstatistikWeb.Models;     // <-- E�er MongoDbContext bu namespace'teyse ekle
+using YokIstatistikWeb.Models;
+using YokIstatistikWeb.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// MongoDB yap�land�rmas�
+// MongoDB yapılandırması
 builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDBSettings"));
-builder.Services.AddSingleton<UniversiteService>();
-
-// ?? MongoDbContext eklenmeli
 builder.Services.AddSingleton<MongoDbContext>();
+
+// Tüm veri erişimi bu servis üzerinden yapılıyor.
+builder.Services.AddScoped<IstatistikServisi>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -26,9 +23,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseAuthorization();
 
 app.MapControllerRoute(
