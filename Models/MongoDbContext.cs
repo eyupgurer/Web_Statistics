@@ -26,6 +26,7 @@ namespace YokIstatistikWeb.Models
         public const string UyrukUlke          = "YOI_yabanci_uyruklu_ulke";
         public const string AlanLisans         = "YOI_egitim_alani_lisans";
         public const string AlanOnlisans       = "YOI_egitim_alani_onlisans";
+        public const string YasOgretimTuru     = "YOI_yas_ogretim_turu";
 
         public IMongoCollection<T> Koleksiyon<T>(string onek, string yil) =>
             _database.GetCollection<T>($"{onek}_{yil}");

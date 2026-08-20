@@ -22,6 +22,10 @@
             kadinOrani = Math.Round(y.KadinOrani, 1),
             ogrenci = y.Ogrenci,
             mezun = y.Mezun,
+            orgun = y.Orgun,
+            ikinci = y.Ikinci,
+            uzaktan = y.Uzaktan,
+            acik = y.Acik,
             kurum = y.KurumSayisi,
         }));
 }
@@ -109,6 +113,49 @@
                         <h5>Öğrenci ve mezun sayıları</h5>
                         <div class="kart-alt mb-3">Önlisans ve lisans düzeyi</div>
                         <div id="ogrenciGrafik" style="width:100%; height:320px;"></div>
+                    </div>
+                </div>
+            }
+
+            @{
+                var turluYillar = Model.Yillar.Where(y => y.OgretimTuruVar).ToList();
+            }
+            @if (turluYillar.Count > 1)
+            {
+                var ilkT = turluYillar[0];
+                var sonT = turluYillar[^1];
+                string Fark(int bas, int son) =>
+                    bas > 0 ? ((son - bas) >= 0 ? "+" : "") + ((double)(son - bas) / bas * 100).ToString("N0") + "%" : "—";
+
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h5>Öğretim türüne göre öğrenci</h5>
+                        <div class="kart-alt mb-3">
+                            Toplam öğrenci sayısı tek başına yanıltıcı: örgün öğretim büyürken
+                            açık ve ikinci öğretim daralıyor
+                        </div>
+                        <div id="turGrafik" style="width:100%; height:360px;"></div>
+
+                        <div class="row g-3 mt-2">
+                            @foreach (var (ad, bas, son, renk) in new[]
+                            {
+                                ("Örgün öğretim",  ilkT.Orgun,   sonT.Orgun,   "var(--seri-1)"),
+                                ("Açık öğretim",   ilkT.Acik,    sonT.Acik,    "var(--seri-2)"),
+                                ("İkinci öğretim", ilkT.Ikinci,  sonT.Ikinci,  "var(--seri-3)"),
+                                ("Uzaktan öğretim",ilkT.Uzaktan, sonT.Uzaktan, "var(--seri-4)"),
+                            })
+                            {
+                                <div class="col-6 col-lg-3">
+                                    <div style="border-top:2px solid @renk; padding-top:10px;">
+                                        <div style="font-size:12px; color:var(--metin-ikincil); margin-bottom:4px;">@ad</div>
+                                        <div class="num" style="font-size:19px; font-weight:600;">@son.ToString("N0")</div>
+                                        <div class="num" style="font-size:11.5px; color:var(--metin-soluk); margin-top:2px;">
+                                            @ilkT.YilGoster’dan bu yana @Fark(bas, son)
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
                     </div>
                 </div>
             }
@@ -211,6 +258,23 @@
                     legend: { position: 'none' },
                     vAxis: Object.assign({}, temel.vAxis, { format: "#'%'" })
                 }));
+
+            // Öğretim türü — dört seri, bitişik pairlist'te doğrulanmış palet
+            const turKap = document.getElementById('turGrafik');
+            if (turKap) {
+                const dt = new google.visualization.DataTable();
+                dt.addColumn('string', 'Yıl');
+                dt.addColumn('number', 'Örgün');
+                dt.addColumn('number', 'Açık');
+                dt.addColumn('number', 'İkinci');
+                dt.addColumn('number', 'Uzaktan');
+                seri.filter(s => s.orgun > 0)
+                    .forEach(s => dt.addRow([s.yil, s.orgun, s.acik, s.ikinci, s.uzaktan]));
+                new google.visualization.LineChart(turKap)
+                    .draw(dt, Object.assign({}, temel, {
+                        colors: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100']
+                    }));
+            }
 
             // Öğrenci ve mezun — yalnızca verisi olan yıllar
             const kap = document.getElementById('ogrenciGrafik');

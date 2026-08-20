@@ -34,6 +34,7 @@ KOLEKSIYON_ONEKI = {
     "T201": "YOI_yabanci_uyruklu_ulke",
     "T017": "YOI_egitim_alani_lisans",
     "T019": "YOI_egitim_alani_onlisans",
+    "T007": "YOI_yas_ogretim_turu",
 }
 
 # Uygulamanın filtrelediği alanlar. T107'de üniversite kırılımı yok.

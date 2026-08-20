@@ -38,6 +38,15 @@ namespace YokIstatistikWeb.Models
         public int Ogrenci { get; set; }
         public int Mezun { get; set; }
 
+        // Öğretim türü (T007). Öğrenci sayısındaki değişimin hangi türden
+        // geldiğini gösteriyor; toplam rakam tek başına yanıltıcı.
+        public int Orgun { get; set; }
+        public int Ikinci { get; set; }
+        public int Uzaktan { get; set; }
+        public int Acik { get; set; }
+
+        public bool OgretimTuruVar => Orgun + Ikinci + Uzaktan + Acik > 0;
+
         public double KadinOrani =>
             OgretimElemani > 0 ? (double)OgretimElemaniKadin / OgretimElemani * 100 : 0;
 

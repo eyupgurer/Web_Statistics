@@ -312,6 +312,12 @@ namespace YokIstatistikWeb.Services
                 .ToList();
         }
 
+        /// <summary>T007 — yaş satırları, öğretim türü kırılımıyla.</summary>
+        public List<YasKayit> YasDagilimi(string yil) =>
+            _context.Koleksiyon<YasKayit>(MongoDbContext.YasOgretimTuru, YilDogrula(yil))
+                    .Find(Builders<YasKayit>.Filter.Empty)
+                    .ToList();
+
         public List<AkademikBirimSayisi> AkademikBirimler(string yil) =>
             _context.Koleksiyon<AkademikBirimSayisi>(MongoDbContext.AkademikBirim, YilDogrula(yil))
                     .Find(Builders<AkademikBirimSayisi>.Filter.Empty)
@@ -356,11 +362,32 @@ namespace YokIstatistikWeb.Services
                     OgretimElemaniKadin = kurumlar.Sum(u => u.toplam_kadin ?? 0),
                 };
 
+                // Öğrenci sayısı bütün öğrenim düzeylerini kapsamalı. T012
+                // yalnızca önlisans+lisans; lisansüstü T022'de. T007 varsa
+                // dördünü birden verdiği için tercih ediliyor.
                 if (_context.KoleksiyonVar(MongoDbContext.Ogrenci, yil))
                     ozet.Ogrenci = Ogrenciler(yil).Sum(u => u.toplam_toplam ?? 0);
 
+                if (_context.KoleksiyonVar(MongoDbContext.Lisansustu, yil))
+                    ozet.Ogrenci += Lisansustu(yil).Sum(u => u.toplam_toplam ?? 0);
+
                 if (_context.KoleksiyonVar(MongoDbContext.Mezun, yil))
                     ozet.Mezun = Mezunlar(yil).Sum(u => u.toplam_toplam ?? 0);
+
+                // Öğretim türü kırılımı yalnızca T007'de var ve öğrenci
+                // sayısındaki dalgalanmanın kaynağını gösteren tek veri bu.
+                if (_context.KoleksiyonVar(MongoDbContext.YasOgretimTuru, yil))
+                {
+                    var yas = YasDagilimi(yil);
+                    ozet.Orgun = yas.Sum(y => y.Orgun);
+                    ozet.Ikinci = yas.Sum(y => y.Ikinci);
+                    ozet.Uzaktan = yas.Sum(y => y.Uzaktan);
+                    ozet.Acik = yas.Sum(y => y.Acik);
+
+                    // T007 bütün düzeyleri kapsıyor; varsa en doğru toplam bu.
+                    var yasToplam = yas.Sum(y => y.toplam_toplam ?? 0);
+                    if (yasToplam > 0) ozet.Ogrenci = yasToplam;
+                }
 
                 model.Yillar.Add(ozet);
             }

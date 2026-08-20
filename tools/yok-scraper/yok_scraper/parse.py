@@ -612,6 +612,37 @@ EGITIM_ALANI_PLANI = DuzTabloPlani(
 )
 
 
+# T007: yaş gruplarına göre öğrenci. Üç katmanlı başlık:
+#   r1 öğrenim düzeyi · r2 öğretim türü · r3 E/K/T
+# Öğretim türü (örgün / ikinci / uzaktan / açık öğretim) başka hiçbir
+# tabloda yok; öğrenci sayısındaki dalgalanmanın hangi türden geldiğini
+# ancak bu gösteriyor.
+YAS_PLANI = DuzTabloPlani(
+    kategori_adi="yas",
+    # 13 ölçüm grubu var ama öğretim türü satırında 12 başlık: sonuncusu
+    # (genel TOPLAM) tür taşımıyor, etiketi bir üst satırda duruyor.
+    baslik_anahtarlari=["ÖRGÜN", "İKİNCİ", "UZAKTAN", "AÇIK",
+                        "ÖRGÜN", "İKİNCİ", "UZAKTAN", "AÇIK",
+                        "ÖRGÜN", "İKİNCİ", "UZAKTAN",
+                        "ÖRGÜN"],
+    olcumler=[
+        Olcum("onlisans_orgun", 1),      Olcum("onlisans_ikinci", 4),
+        Olcum("onlisans_uzaktan", 7),    Olcum("onlisans_acik", 10),
+        Olcum("lisans_orgun", 13),       Olcum("lisans_ikinci", 16),
+        Olcum("lisans_uzaktan", 19),     Olcum("lisans_acik", 22),
+        Olcum("yuksek_lisans_orgun", 25), Olcum("yuksek_lisans_ikinci", 28),
+        Olcum("yuksek_lisans_uzaktan", 31),
+        Olcum("doktora_orgun", 34),
+        Olcum("toplam", 37),
+    ],
+)
+
+
+def ayristir_yas(yol: Path, donem: str) -> list[dict]:
+    """T007 — yaş gruplarına göre öğrenci, öğrenim düzeyi ve öğretim türü kırılımında."""
+    return ayristir_duz_tablo(yol, donem, YAS_PLANI)
+
+
 def ayristir_uyruk(yol: Path, donem: str) -> list[dict]:
     """T201 — yabancı uyruklu öğretim elemanları, uyruğuna göre."""
     return ayristir_duz_tablo(yol, donem, UYRUK_PLANI)
@@ -633,6 +664,7 @@ AYRISTIRICILAR = {
     "T201": (ayristir_uyruk,          "Yabancı uyruklu öğretim elemanları — uyruğa göre"),
     "T017": (ayristir_egitim_alani,   "Lisans öğrenci — eğitim alanına göre"),
     "T019": (ayristir_egitim_alani,   "Önlisans öğrenci — eğitim alanına göre"),
+    "T007": (ayristir_yas,            "Öğrenci — yaş, öğrenim düzeyi ve öğretim türü"),
 }
 
 
