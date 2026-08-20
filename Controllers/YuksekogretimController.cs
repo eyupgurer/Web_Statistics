@@ -204,6 +204,7 @@ namespace YokIstatistikWeb.Controllers
                         Alt = kadin.ToString("N0") + " kişi" },
             };
 
+            ViewBag.Ulkeler = _servis.Ulkeler(yil);
             return View("KurumListesi", model);
         }
 
@@ -287,6 +288,22 @@ namespace YokIstatistikWeb.Controllers
             };
 
             return View("KurumListesi", model);
+        }
+
+        [Route("EgitimAlanlari")]
+        public IActionResult EgitimAlanlari(string? year, string? duzey, int seviye = 0)
+        {
+            var yil = IstatistikServisi.YilDogrula(year);
+            OrtakVeriyiDoldur(yil);
+
+            // Hiyerarşinin üç seviyesi de ayrı ayrı ülke toplamına eşit;
+            // birden fazlasını aynı anda göstermek çift sayım olurdu.
+            seviye = Math.Clamp(seviye, 0, 2);
+            var lisans = duzey != "onlisans";
+
+            ViewBag.Lisans = lisans;
+            ViewBag.Seviye = seviye;
+            return View(_servis.EgitimAlanlari(yil, lisans, seviye));
         }
 
         [Route("OzetTablolar")]

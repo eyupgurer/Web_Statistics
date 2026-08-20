@@ -12,7 +12,7 @@ from __future__ import annotations
 import gzip
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import xlrd
@@ -405,6 +405,92 @@ def universite_bloklari(yol: Path, donem: str, plan: TabloPlani) -> list[dict]:
     return universiteler
 
 
+# ---------------------------------------------------------------- düz tablolar
+
+@dataclass
+class DuzTabloPlani:
+    """Satırları üniversite değil KATEGORİ olan tablolar (ülke, eğitim alanı).
+
+    Bu tablolarda tür/il/ilçe kolonu yok; ad kolonundan sonra doğrudan
+    ölçümler geliyor.
+    """
+    kategori_adi: str = "kategori"
+    olcumler: list[Olcum] = field(default_factory=list)
+    baslik_anahtarlari: list[str] = field(default_factory=list)
+    # Eğitim alanı tablolarında satırlar hiyerarşik (geniş alan > dar alan >
+    # ayrıntılı alan) ve seviye Excel'in girinti biçiminde saklı. Okunmazsa
+    # üç seviye toplanıp gerçek toplamın üç katı çıkıyor.
+    hiyerarsik: bool = False
+
+
+def ayristir_duz_tablo(yol: Path, donem: str, plan: DuzTabloPlani) -> list[dict]:
+    """Kategori satırlı tabloları ayrıştırır."""
+    # Girinti seviyesi yalnızca biçim bilgisiyle okunabiliyor.
+    try:
+        kitap = xlrd.open_workbook(yol, formatting_info=plan.hiyerarsik)
+    except Exception:                                  # noqa: BLE001
+        kitap = xlrd.open_workbook(yol)
+        plan = replace(plan, hiyerarsik=False)
+    sayfa = kitap.sheet_by_index(0)
+
+    # E/K/T satırını ve üçlüleri bul (üniversite tablolarıyla aynı mantık)
+    ekt_satiri = ilk_kolon = None
+    for r in range(min(8, sayfa.nrows)):
+        for c in range(min(6, sayfa.ncols - 2)):
+            if (_temiz(sayfa.cell_value(r, c)) == "E"
+                    and _temiz(sayfa.cell_value(r, c + 1)) == "K"
+                    and _temiz(sayfa.cell_value(r, c + 2)).startswith("T")):
+                ekt_satiri, ilk_kolon = r, c
+                break
+        if ekt_satiri is not None:
+            break
+    if ekt_satiri is None:
+        raise TabloDuzeniDegisti("E | K | T başlık satırı bulunamadı")
+
+    _basliklari_dogrula(sayfa, ekt_satiri, ilk_kolon, plan)
+
+    ucluler = []
+    c = ilk_kolon
+    while c + 2 < sayfa.ncols:
+        if (_temiz(sayfa.cell_value(ekt_satiri, c)) == "E"
+                and _temiz(sayfa.cell_value(ekt_satiri, c + 1)) == "K"
+                and _temiz(sayfa.cell_value(ekt_satiri, c + 2)).startswith("T")):
+            ucluler.append(c); c += 3
+        else:
+            c += 1
+    if len(ucluler) < len(plan.olcumler):
+        raise TabloDuzeniDegisti(
+            f"{len(plan.olcumler)} ölçüm grubu bekleniyordu, {len(ucluler)} bulundu")
+
+    kayitlar: list[dict] = []
+    for satir in range(ekt_satiri + 2, sayfa.nrows):
+        ham = str(sayfa.cell_value(satir, 0) or "")
+        if _dipnot_mu(ham):
+            continue
+        ad_tr, ad_en = _iki_dilli(ham)
+        if not ad_tr or ad_tr.startswith(TOPLAM_IZI):
+            continue
+
+        kayit = {
+            plan.kategori_adi: ad_tr,
+            f"{plan.kategori_adi}_en": ad_en,
+            "yil": donem,
+        }
+        if plan.hiyerarsik:
+            xf = kitap.xf_list[sayfa.cell_xf_index(satir, 0)]
+            kayit["seviye"] = xf.alignment.indent_level // 2
+
+        for i, olcum in enumerate(plan.olcumler):
+            kol = ucluler[i]
+            for kayma, cinsiyet in enumerate(("erkek", "kadin", "toplam")):
+                kayit[f"{olcum.onek}_{cinsiyet}"] = (
+                    _sayi(sayfa.cell_value(satir, kol + kayma))
+                    if kol + kayma < sayfa.ncols else None)
+        kayitlar.append(kayit)
+
+    return kayitlar
+
+
 # ---------------------------------------------------------------- tablo planları
 
 # T028 / T035: 6 unvan x (E, K, T), kolon 3'ten başlıyor
@@ -506,6 +592,36 @@ def ayristir_birim_sayilari(yol: Path, donem: str) -> list[dict]:
     return kayitlar
 
 
+# T201: yabancı uyruklu öğretim elemanları, uyruğa göre. Satır = ülke.
+UYRUK_PLANI = DuzTabloPlani(
+    kategori_adi="ulke",
+    baslik_anahtarlari=["PROFESÖR", "DOÇENT", "DOKTOR", "ÖĞRETİM GÖREVLİSİ",
+                        "ARAŞTIRMA", "TOPLAM"],
+    olcumler=[Olcum("profesor", 1), Olcum("docent", 4),
+              Olcum("doktor_ogretim_uyesi", 7), Olcum("ogretim_gorevlisi", 10),
+              Olcum("arastirma_gorevlisi", 13), Olcum("toplam", 16)],
+)
+
+# T017 / T019: eğitim ve öğretim alanına göre öğrenci sayıları.
+# Satırlar hiyerarşik: geniş alan (seviye 0) > dar alan (1) > ayrıntılı (2).
+EGITIM_ALANI_PLANI = DuzTabloPlani(
+    kategori_adi="alan",
+    baslik_anahtarlari=["YENİ KAYIT", "TOPLAM"],
+    olcumler=[Olcum("yeni_kayit", 1), Olcum("toplam", 5)],
+    hiyerarsik=True,
+)
+
+
+def ayristir_uyruk(yol: Path, donem: str) -> list[dict]:
+    """T201 — yabancı uyruklu öğretim elemanları, uyruğuna göre."""
+    return ayristir_duz_tablo(yol, donem, UYRUK_PLANI)
+
+
+def ayristir_egitim_alani(yol: Path, donem: str) -> list[dict]:
+    """T017 (lisans) ve T019 (önlisans) — eğitim alanına göre öğrenci."""
+    return ayristir_duz_tablo(yol, donem, EGITIM_ALANI_PLANI)
+
+
 # Tablo kodu -> (ayrıştırıcı, açıklama)
 AYRISTIRICILAR = {
     "T028": (ayristir_unvan,          "Öğretim elemanları — akademik görevlere göre"),
@@ -514,6 +630,9 @@ AYRISTIRICILAR = {
     "M005": (ayristir_mezun,          "Mezun sayıları"),
     "T107": (ayristir_birim_sayilari, "Türlerine göre akademik birim sayıları"),
     "T022": (ayristir_lisansustu,     "Lisansüstü öğrenci sayıları"),
+    "T201": (ayristir_uyruk,          "Yabancı uyruklu öğretim elemanları — uyruğa göre"),
+    "T017": (ayristir_egitim_alani,   "Lisans öğrenci — eğitim alanına göre"),
+    "T019": (ayristir_egitim_alani,   "Önlisans öğrenci — eğitim alanına göre"),
 }
 
 

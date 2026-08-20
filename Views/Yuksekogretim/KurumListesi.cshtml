@@ -148,6 +148,48 @@
             </div>
 
             <div class="col-lg-4">
+                @* Yabancı uyruklu sayfasında ülke kırılımı da var (T201) *@
+                @if (ViewBag.Ulkeler is List<YokIstatistikWeb.Models.UlkeKayit> ulkeler && ulkeler.Any())
+                {
+                    var ulkeToplam = ulkeler.Sum(u => u.toplam_toplam ?? 0);
+                    var ulkeEnYuksek = Math.Max(ulkeler.First().toplam_toplam ?? 1, 1);
+                    <div class="card mb-4">
+                        <div class="kart-baslik d-flex justify-content-between align-items-baseline">
+                            <div>
+                                <div class="card-title">Uyruğa göre</div>
+                                <div class="kart-alt">En çok öğretim elemanı gönderen ülkeler</div>
+                            </div>
+                            <span class="num" style="font-size:12.5px; color:var(--metin-ikincil);">
+                                @ulkeler.Count ülke
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var u in ulkeler.Take(12))
+                            {
+                                var ut = u.toplam_toplam ?? 0;
+                                var uoran = (double)ut / ulkeEnYuksek * 100;
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-baseline gap-3 mb-1">
+                                        <span style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                            @u.ulke
+                                        </span>
+                                        <span class="num" style="font-size:12px; font-weight:600; flex-shrink:0;">
+                                            @ut.ToString("N0")
+                                        </span>
+                                    </div>
+                                    <div class="cubuk" style="height:8px;">
+                                        <div class="cubuk-dolu"
+                                             style="width:@uoran.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)%; background:var(--seri-3);"></div>
+                                    </div>
+                                </div>
+                            }
+                            <div class="pt-2 mt-2" style="border-top:1px solid var(--cizgi-acik); font-size:11.5px; color:var(--metin-soluk);">
+                                @ulkeler.Count ülkeden toplam @ulkeToplam.ToString("N0") öğretim elemanı
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 <div class="card">
                     <div class="kart-baslik">
                         <div class="card-title">En yüksek 10 kurum</div>

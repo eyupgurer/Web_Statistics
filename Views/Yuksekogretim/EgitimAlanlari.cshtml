@@ -1,0 +1,114 @@
+@model List<YokIstatistikWeb.Models.EgitimAlaniKayit>
+@{
+    ViewData["Title"] = "Eğitim Alanları";
+    var lisans = (bool)ViewBag.Lisans;
+    var seviye = (int)ViewBag.Seviye;
+    var yil = (string)ViewBag.Yil;
+
+    var toplam = Model.Sum(a => a.toplam_toplam ?? 0);
+    var enYuksek = Math.Max(Model.FirstOrDefault()?.toplam_toplam ?? 1, 1);
+    var yeniKayit = Model.Sum(a => a.yeni_kayit_toplam ?? 0);
+    var kadin = Model.Sum(a => a.toplam_kadin ?? 0);
+
+    var seviyeAdlari = new[] { "Geniş alan", "Dar alan", "Ayrıntılı alan" };
+    string Yuzde(double d) => d.ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">@ViewBag.YilGoster öğretim yılı</div>
+        <h2>Eğitim ve öğretim alanları</h2>
+        <p class="lead mb-0">Alanlara göre öğrenci ve yeni kayıt sayıları</p>
+    </div>
+</div>
+
+<div class="container">
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-warning">
+            <strong>@ViewBag.YilGoster</strong> öğretim yılı için bu veri yüklenmemiş.
+            <code>python -m yok_scraper seed</code> komutunu çalıştırın.
+        </div>
+    }
+    else
+    {
+        <div class="kpi-serit mb-4" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+            <div class="kpi">
+                <div class="kpi-etiket">Öğrenci</div>
+                <div class="kpi-deger num">@toplam.ToString("N0")</div>
+                <div class="kpi-alt">@(lisans ? "Lisans düzeyi" : "Önlisans düzeyi")</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Yeni kayıt</div>
+                <div class="kpi-deger num">@yeniKayit.ToString("N0")</div>
+                <div class="kpi-alt">Bu öğretim yılında</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Kadın oranı</div>
+                <div class="kpi-deger num">%@Yuzde(toplam > 0 ? (double)kadin / toplam * 100 : 0)</div>
+                <div class="kpi-alt">@kadin.ToString("N0") öğrenci</div>
+            </div>
+        </div>
+
+        <!-- SEÇİCİLER -->
+        <div class="filter-form d-flex flex-wrap gap-4 align-items-end">
+            <div>
+                <div class="form-label">Öğrenim düzeyi</div>
+                <div class="d-flex gap-2">
+                    @foreach (var (ad, deger) in new[] { ("Lisans", "lisans"), ("Önlisans", "onlisans") })
+                    {
+                        var etkin = (deger == "lisans") == lisans;
+                        <a href="@Url.Action("EgitimAlanlari", new { year = yil, duzey = deger, seviye })"
+                           class="btn @(etkin ? "btn-primary" : "btn-outline-primary")">@ad</a>
+                    }
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Kırılım</div>
+                <div class="d-flex gap-2">
+                    @for (var i = 0; i < seviyeAdlari.Length; i++)
+                    {
+                        <a href="@Url.Action("EgitimAlanlari", new { year = yil, duzey = lisans ? "lisans" : "onlisans", seviye = i })"
+                           class="btn @(i == seviye ? "btn-primary" : "btn-outline-primary")">@seviyeAdlari[i]</a>
+                    }
+                </div>
+            </div>
+            <div style="font-size:11.5px; color:var(--metin-soluk); line-height:1.5; max-width:340px;">
+                Üç kırılımın her biri aynı toplamı veriyor; alanlar giderek
+                ayrıntılanıyor, üst üste toplanmıyor.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="kart-baslik d-flex justify-content-between align-items-baseline">
+                <div class="card-title">@seviyeAdlari[seviye] kırılımı</div>
+                <span class="num" style="font-size:12.5px; color:var(--metin-ikincil);">@Model.Count alan</span>
+            </div>
+            <div class="card-body">
+                @foreach (var a in Model)
+                {
+                    var t = a.toplam_toplam ?? 0;
+                    var oran = (double)t / enYuksek * 100;
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-baseline gap-3 mb-1">
+                            <span style="font-size:12.5px;">@a.alan</span>
+                            <span class="num" style="font-size:12.5px; flex-shrink:0;">
+                                <strong>@t.ToString("N0")</strong>
+                                <span style="color:var(--metin-soluk);">%@Yuzde(a.KadinOrani) kadın</span>
+                            </span>
+                        </div>
+                        <div class="yigin" style="height:10px;">
+                            <div style="width:@Yuzde(oran * (100 - a.KadinOrani) / 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
+                            <div style="width:@Yuzde(oran * a.KadinOrani / 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
+                        </div>
+                    </div>
+                }
+                <div class="lejant mt-3 pt-3" style="border-top:1px solid var(--cizgi-acik);">
+                    <span><i class="seri-nokta" style="background:var(--seri-1);"></i>Erkek</span>
+                    <span><i class="seri-nokta" style="background:var(--seri-2);"></i>Kadın</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>

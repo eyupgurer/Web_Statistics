@@ -292,6 +292,26 @@ namespace YokIstatistikWeb.Services
             string? sehir = null, string? tur = null) =>
             FiltreliListe<LisansustuKurum>(MongoDbContext.Lisansustu, yil, arama, sehir, tur);
 
+        /// <summary>T201 — uyruğa göre yabancı öğretim elemanları, çoktan aza.</summary>
+        public List<UlkeKayit> Ulkeler(string yil) =>
+            _context.Koleksiyon<UlkeKayit>(MongoDbContext.UyrukUlke, YilDogrula(yil))
+                    .Find(Builders<UlkeKayit>.Filter.Empty)
+                    .SortByDescending(u => u.toplam_toplam)
+                    .ToList();
+
+        /// <summary>
+        /// T017 / T019 — eğitim alanına göre öğrenci. Seviyeler ayrı ayrı ülke
+        /// toplamına eşit olduğu için yalnızca istenen seviye dönüyor.
+        /// </summary>
+        public List<EgitimAlaniKayit> EgitimAlanlari(string yil, bool lisans, int seviye = 0)
+        {
+            var onek = lisans ? MongoDbContext.AlanLisans : MongoDbContext.AlanOnlisans;
+            return _context.Koleksiyon<EgitimAlaniKayit>(onek, YilDogrula(yil))
+                .Find(Builders<EgitimAlaniKayit>.Filter.Eq(a => a.seviye, seviye))
+                .SortByDescending(a => a.toplam_toplam)
+                .ToList();
+        }
+
         public List<AkademikBirimSayisi> AkademikBirimler(string yil) =>
             _context.Koleksiyon<AkademikBirimSayisi>(MongoDbContext.AkademikBirim, YilDogrula(yil))
                     .Find(Builders<AkademikBirimSayisi>.Filter.Empty)

@@ -23,6 +23,9 @@ namespace YokIstatistikWeb.Models
         public const string Mezun              = "YOI_mezun_sayilari";
         public const string AkademikBirim      = "YOI_akademik_birim_sayilari";
         public const string Lisansustu         = "YOI_lisansustu_ogrenci";
+        public const string UyrukUlke          = "YOI_yabanci_uyruklu_ulke";
+        public const string AlanLisans         = "YOI_egitim_alani_lisans";
+        public const string AlanOnlisans       = "YOI_egitim_alani_onlisans";
 
         public IMongoCollection<T> Koleksiyon<T>(string onek, string yil) =>
             _database.GetCollection<T>($"{onek}_{yil}");
