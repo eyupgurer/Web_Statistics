@@ -64,32 +64,33 @@ namespace YokIstatistikWeb.Controllers
             }
         }
 
-        [Route("Detay")]
-        public IActionResult Detay(string id, string? year)
+        // Yol tabanlı ve okunabilir: /Yuksekogretim/Detay/hacettepe-universitesi
+        [Route("Detay/{kurum}")]
+        public IActionResult Detay(string kurum, string? year)
         {
             var yil = IstatistikServisi.YilDogrula(year);
             OrtakVeriyiDoldur(yil);
 
             try
             {
-                var profil = _servis.KurumProfili(yil, id);
+                var profil = _servis.KurumProfili(yil, kurum);
                 if (profil is null)
                 {
-                    _logger.LogWarning("{Yil} yılında {Id} bulunamadı", yil, id);
+                    _logger.LogWarning("{Yil} yılında {Kurum} bulunamadı", yil, kurum);
                     return NotFound();
                 }
                 return View(profil);
             }
             catch (Exception hata)
             {
-                _logger.LogError(hata, "{Id} detayı çekilemedi", id);
+                _logger.LogError(hata, "{Kurum} detayı çekilemedi", kurum);
                 TempData["Error"] = "Detay bilgileri çekilirken bir hata oluştu.";
                 return RedirectToAction(nameof(Index), new { year = yil });
             }
         }
 
         [Route("Karsilastir")]
-        public IActionResult Karsilastir(string? id1, string? id2, string? year)
+        public IActionResult Karsilastir(string? kurum1, string? kurum2, string? year)
         {
             var yil = IstatistikServisi.YilDogrula(year);
             OrtakVeriyiDoldur(yil);
@@ -99,14 +100,14 @@ namespace YokIstatistikWeb.Controllers
                 // Seçim listesi her durumda gerekiyor: kullanıcı sayfaya doğrudan
                 // gelmiş olabilir ya da seçimini değiştirmek isteyebilir.
                 ViewBag.Secenekler = _servis.Listele(yil);
-                ViewBag.Id1 = id1;
-                ViewBag.Id2 = id2;
+                ViewBag.Kurum1 = kurum1;
+                ViewBag.Kurum2 = kurum2;
 
-                if (string.IsNullOrWhiteSpace(id1) || string.IsNullOrWhiteSpace(id2))
+                if (string.IsNullOrWhiteSpace(kurum1) || string.IsNullOrWhiteSpace(kurum2))
                     return View((Tuple<Universite, Universite>?)null);
 
-                var u1 = _servis.Getir(yil, id1);
-                var u2 = _servis.Getir(yil, id2);
+                var u1 = _servis.Getir(yil, kurum1);
+                var u2 = _servis.Getir(yil, kurum2);
 
                 if (u1 is null || u2 is null)
                 {
@@ -118,7 +119,7 @@ namespace YokIstatistikWeb.Controllers
             }
             catch (Exception hata)
             {
-                _logger.LogError(hata, "Karşılaştırma başarısız: {Id1} / {Id2}", id1, id2);
+                _logger.LogError(hata, "Karşılaştırma başarısız: {Kurum1} / {Kurum2}", kurum1, kurum2);
                 TempData["Error"] = "Karşılaştırma yapılırken bir hata oluştu.";
                 return RedirectToAction(nameof(Index), new { year = yil });
             }

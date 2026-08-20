@@ -129,7 +129,7 @@
                             {
                                 <tr>
                                     <td style="font-weight:500;">
-                                        <a href="@Url.Action("Detay", "Yuksekogretim", new { id = uni.Id, year = ViewBag.Yil })">
+                                        <a href="@Url.Action("Detay", "Yuksekogretim", new { kurum = uni.slug, year = ViewBag.Yil })">
                                             @uni.universite
                                         </a>
                                     </td>

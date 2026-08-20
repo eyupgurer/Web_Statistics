@@ -91,6 +91,26 @@ def _iki_dilli(deger) -> tuple[str, str]:
     return parcalar[0], (parcalar[1] if len(parcalar) > 1 else "")
 
 
+# Türkçe harflerin URL karşılıkları. str.lower() işe yaramıyor: "İ".lower()
+# birleşik noktalı "i̇" üretiyor ve slug'a görünmez bir karakter sızdırıyor.
+TR_HARFLER = str.maketrans({
+    "İ": "i", "I": "i", "ı": "i", "Ğ": "g", "ğ": "g", "Ü": "u", "ü": "u",
+    "Ş": "s", "ş": "s", "Ö": "o", "ö": "o", "Ç": "c", "ç": "c", "Â": "a", "â": "a",
+})
+
+
+def slug_uret(ad: str) -> str:
+    """'HACETTEPE ÜNİVERSİTESİ' -> 'hacettepe-universitesi'.
+
+    Kurum linkleri kalıcı olmalı. Önceden URL'de MongoDB'nin ObjectId'si vardı
+    ve veri her yeniden yüklendiğinde yeni id üretildiği için paylaşılan
+    linkler ölüyordu. Slug addan türediği için sabit kalıyor.
+    """
+    metin = _temiz(ad).translate(TR_HARFLER).lower()
+    metin = re.sub(r"[^a-z0-9]+", "-", metin)
+    return metin.strip("-")[:80]
+
+
 def _tur_normalize(ham: str) -> str:
     metin = _temiz(ham).upper()
     for onek in TUR_ONEKLERI:
@@ -343,6 +363,7 @@ def universite_bloklari(yol: Path, donem: str, plan: TabloPlani) -> list[dict]:
             aktif = {
                 "universite": ad_tr,
                 "universite_en": ad_en,
+                "slug": slug_uret(ad_tr),
                 "tur": tur,
                 "sehir": _temiz(sayfa.cell_value(satir, plan.sehir_kolonu)),
                 "yil": donem,

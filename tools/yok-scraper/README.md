@@ -76,6 +76,17 @@ sistemde kurulu Google Chrome'a otomatik düşüyor — ek kurulum gerekmiyor.
 ./.venv/bin/python -m yok_scraper years
 ```
 
+### Kalıcı kurum kimliği
+
+Her kayda üniversite adından türeyen bir `slug` yazılıyor
+(`HACETTEPE ÜNİVERSİTESİ` → `hacettepe-universitesi`). Uygulama URL'lerinde
+bunu kullanıyor; önceden MongoDB'nin `ObjectId`'si vardı ve veri her yeniden
+yüklendiğinde yeni id üretildiği için paylaşılan linkler ölüyordu.
+
+Türkçe harfler `str.lower()` ile çevrilmiyor: `"İ".lower()` birleşik noktalı
+`i̇` üretip slug'a görünmez bir karakter sızdırıyor. Açık bir harf eşlemesi
+kullanılıyor.
+
 ### Deterministik çıktı
 
 `parse` çıktısı bayt bayt tekrarlanabilir olmak zorunda: gzip varsayılan olarak

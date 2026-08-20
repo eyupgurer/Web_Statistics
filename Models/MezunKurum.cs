@@ -14,6 +14,9 @@ namespace YokIstatistikWeb.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string Id { get; set; } = "";
 
+        /// <summary>Kalıcı ve okunabilir kurum kimliği (URL'lerde kullanılıyor).</summary>
+        public string? slug { get; set; }
+
         public string universite { get; set; } = "";
         public string? universite_en { get; set; }
         public string tur { get; set; } = "";

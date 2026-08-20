@@ -42,22 +42,22 @@
         <input type="hidden" name="year" value="@ViewBag.Yil" />
         <div class="row g-3 align-items-end">
             <div class="col-md-5">
-                <label class="form-label" for="id1">1. üniversite</label>
-                <select class="form-select" id="id1" name="id1" style="border-left:3px solid var(--seri-1);">
+                <label class="form-label" for="kurum1">1. üniversite</label>
+                <select class="form-select" id="kurum1" name="kurum1" style="border-left:3px solid var(--seri-1);">
                     <option value="">Seçiniz…</option>
                     @foreach (var u in secenekler)
                     {
-                        <option value="@u.Id" selected="@(u.Id == (string?)ViewBag.Id1)">@u.universite</option>
+                        <option value="@u.slug" selected="@(u.slug == (string?)ViewBag.Kurum1)">@u.universite</option>
                     }
                 </select>
             </div>
             <div class="col-md-5">
-                <label class="form-label" for="id2">2. üniversite</label>
-                <select class="form-select" id="id2" name="id2" style="border-left:3px solid var(--seri-2);">
+                <label class="form-label" for="kurum2">2. üniversite</label>
+                <select class="form-select" id="kurum2" name="kurum2" style="border-left:3px solid var(--seri-2);">
                     <option value="">Seçiniz…</option>
                     @foreach (var u in secenekler)
                     {
-                        <option value="@u.Id" selected="@(u.Id == (string?)ViewBag.Id2)">@u.universite</option>
+                        <option value="@u.slug" selected="@(u.slug == (string?)ViewBag.Kurum2)">@u.universite</option>
                     }
                 </select>
             </div>

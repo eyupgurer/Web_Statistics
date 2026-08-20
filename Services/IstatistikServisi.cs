@@ -106,10 +106,16 @@ namespace YokIstatistikWeb.Services
                              .ToList();
         }
 
-        public Universite? Getir(string yil, string id)
+        /// <summary>
+        /// Kurumu kalıcı slug'ıyla getirir. Önceden URL'de MongoDB'nin
+        /// ObjectId'si vardı ve veri her yeniden yüklendiğinde değiştiği için
+        /// paylaşılan linkler ölüyordu.
+        /// </summary>
+        public Universite? Getir(string yil, string slug)
         {
+            if (string.IsNullOrWhiteSpace(slug)) return null;
             var koleksiyon = _context.GetCollectionForYear(YilDogrula(yil));
-            return koleksiyon.Find(u => u.Id == id).FirstOrDefault();
+            return koleksiyon.Find(u => u.slug == slug).FirstOrDefault();
         }
 
         /// <summary>Filtre açılır listeleri için o yılda geçen şehirler.</summary>
@@ -347,10 +353,10 @@ namespace YokIstatistikWeb.Services
         /// Bir kurumun bütün veri gruplarını toplar. Gruplar ayrı koleksiyonlarda
         /// ve ortak kimlik taşımıyorlar; eşleştirme üniversite adıyla yapılıyor.
         /// </summary>
-        public KurumProfiliViewModel? KurumProfili(string yil, string id)
+        public KurumProfiliViewModel? KurumProfili(string yil, string slug)
         {
             yil = YilDogrula(yil);
-            var ana = Getir(yil, id);
+            var ana = Getir(yil, slug);
             if (ana is null) return null;
 
             var model = new KurumProfiliViewModel
@@ -365,7 +371,7 @@ namespace YokIstatistikWeb.Services
                 try
                 {
                     return _context.Koleksiyon<T>(onek, yil)
-                        .Find(Builders<T>.Filter.Eq("universite", ana.universite))
+                        .Find(Builders<T>.Filter.Eq("slug", ana.slug))
                         .FirstOrDefault();
                 }
                 catch (Exception hata)

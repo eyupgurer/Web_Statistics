@@ -34,7 +34,7 @@ KOLEKSIYON_ONEKI = {
 }
 
 # Uygulamanın filtrelediği alanlar. T107'de üniversite kırılımı yok.
-INDEKSLER = ("sehir", "tur", "universite")
+INDEKSLER = ("slug", "sehir", "tur", "universite")
 
 
 def koleksiyon_adi(tablo_kodu: str, donem: str) -> str:
