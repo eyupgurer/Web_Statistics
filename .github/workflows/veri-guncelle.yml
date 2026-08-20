@@ -1,0 +1,183 @@
+name: YÖK verisi
+
+# YÖK istatistikleri yılda bir yayımlanıyor (2025-2026 -> 27.03.2026).
+# Bu yüzden iki ayrı iş var:
+#
+#   yeni-yil-kontrol  Ayda bir çalışır, portalda YALNIZCA yıl menüsünü okur.
+#                     Yeni bir öğretim yılı çıkmışsa issue açar. Tek sayfa
+#                     yüklemesi; kamu sunucusunu yormaz.
+#
+#   veri-guncelle     Elle tetiklenir. Tam scrape + parse yapıp değişiklik
+#                     varsa pull request açar. ~200 dosya, ~100 MB indirir.
+#
+# Ham .xls dosyaları .gitignore'da: PR'a yalnızca normalize edilmiş
+# data/processed/*.ndjson.gz giriyor.
+
+on:
+  schedule:
+    # Her ayın 1'i 06:00 UTC. YÖK genelde mart sonunda yayımlıyor.
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      tam_guncelleme:
+        description: "Tam scrape + parse çalıştır ve PR aç"
+        type: boolean
+        default: false
+      yillar:
+        description: "Çekilecek yıllar (virgülle, boş bırakılırsa config.YEARS)"
+        type: string
+        default: ""
+
+defaults:
+  run:
+    working-directory: tools/yok-scraper
+
+jobs:
+  yeni-yil-kontrol:
+    name: Yeni öğretim yılı kontrolü
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      issues: write
+    outputs:
+      yeni_yil: ${{ steps.kontrol.outputs.yeni_yil }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/yok-scraper/requirements.txt
+
+      - name: Bağımlılıkları kur
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Portaldaki yılları oku
+        id: kontrol
+        run: |
+          set +e
+          cikti=$(python -m yok_scraper years)
+          kod=$?
+          set -e
+          echo "$cikti"
+          # 'years' komutu yeni yıl bulduğunda 2 döner ve YENI_YIL= satırı yazar
+          if [ "$kod" -eq 2 ]; then
+            yil=$(echo "$cikti" | grep -oE 'YENI_YIL=[0-9,-]+' | cut -d= -f2)
+            echo "yeni_yil=$yil" >> "$GITHUB_OUTPUT"
+          elif [ "$kod" -ne 0 ]; then
+            echo "Yıl listesi okunamadı (çıkış kodu $kod)"
+            exit "$kod"
+          fi
+
+      - name: Yeni yıl için issue aç
+        if: steps.kontrol.outputs.yeni_yil != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          YENI: ${{ steps.kontrol.outputs.yeni_yil }}
+        run: |
+          baslik="YÖK yeni öğretim yılı yayımladı: $YENI"
+          # Aynı yıl için ikinci kez issue açma
+          if gh issue list --state open --search "$baslik" --json title \
+             | grep -q "$baslik"; then
+            echo "Bu yıl için issue zaten açık."
+            exit 0
+          fi
+          # Gövde dosyaya yazılıp --body-file ile veriliyor: $( ) içindeki
+          # heredoc, metinde kesme işareti geçtiğinde bazı bash sürümlerinde
+          # ayrıştırıcıyı bozuyor.
+          cat > /tmp/issue.md <<EOF
+          Portalda \`$YENI\` öğretim yılı görünüyor ancak \`config.YEARS\` listesinde yok.
+
+          Eklemek için:
+
+          1. \`tools/yok-scraper/yok_scraper/config.py\` içindeki \`YEARS\` listesine ekleyin.
+          2. Actions sekmesinden **YÖK verisi** iş akışını \`tam_guncelleme: true\` ile çalıştırın.
+
+          İş akışı veriyi çeker, ayrıştırır ve değişiklik varsa pull request açar.
+          EOF
+          gh issue create --title "$baslik" --body-file /tmp/issue.md
+
+  veri-guncelle:
+    name: Veriyi çek ve PR aç
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: github.event_name == 'workflow_dispatch' && inputs.tam_guncelleme
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/yok-scraper/requirements.txt
+
+      - name: Bağımlılıkları kur
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Ham veriyi indir
+        run: |
+          if [ -n "${{ inputs.yillar }}" ]; then
+            args=""
+            IFS=',' read -ra yillar <<< "${{ inputs.yillar }}"
+            for y in "${yillar[@]}"; do
+              args="$args --yil $(echo "$y" | xargs)"
+            done
+            echo "Çekilecek yıllar: $args"
+            python -m yok_scraper scrape $args
+          else
+            python -m yok_scraper scrape
+          fi
+
+      - name: Ayrıştır
+        run: python -m yok_scraper parse
+
+      - name: Değişiklik var mı
+        id: fark
+        working-directory: .
+        run: |
+          if git diff --quiet -- data/processed; then
+            echo "degisti=false" >> "$GITHUB_OUTPUT"
+            echo "İşlenmiş veride değişiklik yok."
+          else
+            echo "degisti=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- data/processed
+          fi
+
+      - name: Pull request aç
+        if: steps.fark.outputs.degisti == 'true'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dal="veri/guncelleme-$(date +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$dal"
+          git add data/processed
+          git commit -m "YÖK verisi güncellendi ($(date +%Y-%m-%d))"
+          git push origin "$dal"
+          cat > /tmp/pr.md <<'EOF'
+          Zamanlanmış iş akışı YÖK portalından veriyi yeniden çekti ve ayrıştırdı.
+
+          Değişen dosyalar `data/processed/` altında. Ham `.xls` dosyaları
+          depoya girmiyor (`.gitignore`).
+
+          Birleştirmeden önce ayrıştırma günlüğünde `DOĞRULAMA HATASI` satırı
+          olup olmadığına bakın: varsa YÖK'ün sayfa düzeni değişmiş demektir ve
+          ayrıştırıcının güncellenmesi gerekir.
+          EOF
+          gh pr create \
+            --base "${{ github.ref_name }}" \
+            --head "$dal" \
+            --title "YÖK verisi güncellendi ($(date +%Y-%m-%d))" \
+            --body-file /tmp/pr.md
