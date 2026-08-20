@@ -201,6 +201,64 @@ namespace YokIstatistikWeb.Services
             return model;
         }
 
+
+        // ------------------------------------------------------------------
+        // Diğer tablo grupları
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Ortak filtreli listeleme. Tüm kurum tabloları aynı alan adlarını
+        /// taşıyor (universite / sehir / tur), bu yüzden alan adları metin
+        /// olarak veriliyor ve tek yöntem hepsine yetiyor.
+        /// </summary>
+        private List<T> FiltreliListe<T>(string onek, string yil,
+            string? arama = null, string? sehir = null, string? tur = null)
+        {
+            var koleksiyon = _context.Koleksiyon<T>(onek, YilDogrula(yil));
+            var f = Builders<T>.Filter;
+            var filtre = f.Empty;
+
+            if (!string.IsNullOrWhiteSpace(arama))
+            {
+                var desen = System.Text.RegularExpressions.Regex.Escape(arama.Trim());
+                filtre &= f.Regex("universite", new MongoDB.Bson.BsonRegularExpression(desen, "i"));
+            }
+            if (!string.IsNullOrWhiteSpace(sehir)) filtre &= f.Eq("sehir", sehir);
+            if (!string.IsNullOrWhiteSpace(tur)) filtre &= f.Eq("tur", tur);
+
+            return koleksiyon.Find(filtre)
+                             .Sort(Builders<T>.Sort.Ascending("universite"))
+                             .ToList();
+        }
+
+        public List<Universite> YabanciUyruklular(string yil, string? arama = null,
+            string? sehir = null, string? tur = null) =>
+            FiltreliListe<Universite>(MongoDbContext.YabanciUyruklu, yil, arama, sehir, tur);
+
+        public List<OgrenciKurum> Ogrenciler(string yil, string? arama = null,
+            string? sehir = null, string? tur = null) =>
+            FiltreliListe<OgrenciKurum>(MongoDbContext.Ogrenci, yil, arama, sehir, tur);
+
+        public List<MezunKurum> Mezunlar(string yil, string? arama = null,
+            string? sehir = null, string? tur = null) =>
+            FiltreliListe<MezunKurum>(MongoDbContext.Mezun, yil, arama, sehir, tur);
+
+        public List<AkademikBirimSayisi> AkademikBirimler(string yil) =>
+            _context.Koleksiyon<AkademikBirimSayisi>(MongoDbContext.AkademikBirim, YilDogrula(yil))
+                    .Find(Builders<AkademikBirimSayisi>.Filter.Empty)
+                    .ToList();
+
+        /// <summary>Menüde hangi kartların açık olacağını belirler.</summary>
+        public bool GrupVar(string onek, string yil)
+        {
+            try { return _context.KoleksiyonVar(onek, YilDogrula(yil)); }
+            catch (Exception hata)
+            {
+                _logger.LogError(hata, "{Onek}/{Yil} koleksiyon kontrolü başarısız", onek, yil);
+                return false;
+            }
+        }
+
         /// <summary>O yıl için veri yüklü mü? Boş koleksiyonda anlamsız sayfa göstermemek için.</summary>
         public bool VeriVar(string yil)
         {

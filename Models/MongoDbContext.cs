@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
-using YokIstatistikWeb.Models;
 
 namespace YokIstatistikWeb.Models
 {
+    /// <summary>
+    /// Koleksiyon adları veri pipeline'ının ürettiği kalıba göre kuruluyor:
+    /// {onek}_{yil_slug}, ör. YOI_ogrenci_sayilari_2025_2026.
+    /// </summary>
     public class MongoDbContext
     {
         private readonly IMongoDatabase _database;
@@ -14,14 +17,24 @@ namespace YokIstatistikWeb.Models
             _database = client.GetDatabase(settings.Value.DatabaseName);
         }
 
-        public IMongoCollection<Universite> GetCollectionForYear(string year)
-        {
-            string collectionName = $"YOI_ogretim_elemani_akademik_gorev_sayilari_{year}";
-            return _database.GetCollection<Universite>(collectionName);
-        }
+        public const string OgretimElemani     = "YOI_ogretim_elemani_akademik_gorev_sayilari";
+        public const string YabanciUyruklu     = "YOI_yabanci_uyruklu_ogretim_elemani";
+        public const string Ogrenci            = "YOI_ogrenci_sayilari";
+        public const string Mezun              = "YOI_mezun_sayilari";
+        public const string AkademikBirim      = "YOI_akademik_birim_sayilari";
 
-        // Default collection for backward compatibility
-        public IMongoCollection<Universite> Universiteler =>
-            _database.GetCollection<Universite>("YOI_ogretim_elemani_akademik_gorev_sayilari_2024_2025");
+        public IMongoCollection<T> Koleksiyon<T>(string onek, string yil) =>
+            _database.GetCollection<T>($"{onek}_{yil}");
+
+        /// <summary>Öğretim elemanı sayıları (T028) — uygulamanın ana tablosu.</summary>
+        public IMongoCollection<Universite> GetCollectionForYear(string year) =>
+            Koleksiyon<Universite>(OgretimElemani, year);
+
+        /// <summary>Veritabanında hangi koleksiyonlar var? Boş sayfa göstermemek için.</summary>
+        public bool KoleksiyonVar(string onek, string yil) =>
+            _database.ListCollectionNames(new ListCollectionNamesOptions
+            {
+                Filter = Builders<MongoDB.Bson.BsonDocument>.Filter.Eq("name", $"{onek}_{yil}")
+            }).Any();
     }
 }

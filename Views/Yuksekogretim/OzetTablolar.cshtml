@@ -1,0 +1,99 @@
+@model List<YokIstatistikWeb.Models.AkademikBirimSayisi>
+@{
+    ViewData["Title"] = "Özet Tablolar";
+
+    // "ÜNİVERSİTE" satırı diğerlerinden farklı bir kırılım; başa alınıyor.
+    var siralanmis = Model
+        .OrderByDescending(b => b.birim_turu.StartsWith("ÜNİVERSİTE"))
+        .ThenByDescending(b => b.toplam_aktif ?? 0)
+        .ToList();
+
+    var enYuksek = Math.Max(Model.Where(b => !b.birim_turu.StartsWith("ÜNİVERSİTE"))
+                                 .Select(b => b.toplam_aktif ?? 0)
+                                 .DefaultIfEmpty(1).Max(), 1);
+}
+
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">@ViewBag.YilGoster öğretim yılı</div>
+        <h2>Türlerine göre akademik birim sayıları</h2>
+        <p class="lead mb-0">Devlet, vakıf ve vakıf MYO kurumlarındaki aktif ve pasif birimler</p>
+    </div>
+</div>
+
+<div class="container">
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-warning">
+            <strong>@ViewBag.YilGoster</strong> öğretim yılı için özet tablo verisi yüklenmemiş.
+            <code>python -m yok_scraper seed</code> komutunu çalıştırın.
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card">
+                    <div class="kart-baslik">
+                        <div class="card-title">Birim sayıları</div>
+                        <div class="kart-alt">Pasif birimler öğrenci alımı yapmayan birimlerdir</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>Birim türü</th>
+                                <th class="text-end">Devlet</th>
+                                <th class="text-end">Vakıf</th>
+                                <th class="text-end">Vakıf MYO</th>
+                                <th class="text-end">Aktif</th>
+                                <th class="text-end">Pasif</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var b in siralanmis)
+                            {
+                                <tr>
+                                    <td style="font-weight:500;">@b.birim_turu</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@((b.devlet_aktif ?? 0).ToString("N0"))</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@((b.vakif_aktif ?? 0).ToString("N0"))</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@((b.vakif_myo_aktif ?? 0).ToString("N0"))</td>
+                                    <td class="text-end num" style="font-weight:600;">@((b.toplam_aktif ?? 0).ToString("N0"))</td>
+                                    <td class="text-end num" style="color:var(--metin-soluk);">@((b.toplam_pasif ?? 0).ToString("N0"))</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="kart-baslik">
+                        <div class="card-title">Aktif birim dağılımı</div>
+                        <div class="kart-alt">Üniversite satırı hariç</div>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var b in siralanmis.Where(x => !x.birim_turu.StartsWith("ÜNİVERSİTE")))
+                        {
+                            var aktif = b.toplam_aktif ?? 0;
+                            var oran = (double)aktif / enYuksek * 100;
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-baseline gap-3 mb-1">
+                                    <span style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@b.birim_turu</span>
+                                    <span class="num" style="font-size:12px; font-weight:600; flex-shrink:0;">@aktif.ToString("N0")</span>
+                                </div>
+                                <div class="cubuk" style="height:8px;">
+                                    <div class="cubuk-dolu"
+                                         style="width:@oran.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)%; background:var(--seri-1);"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,77 +1,96 @@
 @{
     ViewData["Title"] = $"{ViewBag.YilGoster} Yılı İstatistikleri";
 
-    // Şu an yalnızca öğretim elemanı verisi (YÖK tablo T028) yüklü.
-    // Diğer üç grup için ham dosyalar indirildi ama ayrıştırıcıları henüz yazılmadı.
-    // Var olmayan action'lara link vermek yerine durumu açıkça gösteriyoruz.
     var yil = (string)ViewBag.Yil;
+    var hazir = (Dictionary<string, bool>)ViewBag.Hazir;
+
+    // Her kart: başlık, ikon, açıklama, veri anahtarı ve bağlantılar.
+    var kartlar = new[]
+    {
+        new
+        {
+            Ad = "Öğretim Elemanları", Ikon = "fa-chalkboard-teacher",
+            Aciklama = "Akademik unvan, cinsiyet ve birim kırılımında öğretim elemanı sayıları",
+            Baglantilar = new[]
+            {
+                new { Ad = "Akademik Görevlere Göre", Aksiyon = "AkademikPersonel", Anahtar = "ogretim_elemani" },
+                new { Ad = "Yabancı Uyruklu",         Aksiyon = "YabanciUyruklu",   Anahtar = "yabanci_uyruklu" },
+            }
+        },
+        new
+        {
+            Ad = "Öğrenci Sayıları", Ikon = "fa-user-graduate",
+            Aciklama = "Önlisans ve lisans düzeyinde öğrenci ve yeni kayıt sayıları",
+            Baglantilar = new[]
+            {
+                new { Ad = "Kurumlara Göre", Aksiyon = "OgrenciSayilari", Anahtar = "ogrenci" },
+            }
+        },
+        new
+        {
+            Ad = "Mezun Sayıları", Ikon = "fa-graduation-cap",
+            Aciklama = "Önlisans ve lisans düzeyinde mezun sayıları",
+            Baglantilar = new[]
+            {
+                new { Ad = "Kurumlara Göre", Aksiyon = "MezunSayilari", Anahtar = "mezun" },
+            }
+        },
+        new
+        {
+            Ad = "Özet Tablolar", Ikon = "fa-table",
+            Aciklama = "Türlerine göre akademik birim sayıları ve genel dağılımlar",
+            Baglantilar = new[]
+            {
+                new { Ad = "Akademik Birim Sayıları", Aksiyon = "OzetTablolar", Anahtar = "ozet" },
+            }
+        },
+    };
 }
 
-<div class="container mt-4 mb-5">
-    <div class="page-header mb-4">
-        <h2 class="mb-1">@ViewBag.YilGoster Yılı İstatistikleri</h2>
-        <p class="text-muted mb-0">Bir veri grubu seçerek incelemeye başlayın</p>
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">Öğretim yılı</div>
+        <h2>@ViewBag.YilGoster İstatistikleri</h2>
+        <p class="lead mb-0">Bir veri grubu seçerek incelemeye başlayın</p>
     </div>
+</div>
 
-    @if (ViewBag.VeriVar is false)
-    {
-        <div class="alert alert-warning">
-            Bu öğretim yılı için veritabanında kayıt bulunamadı.
-            Veriyi yüklemek için <code>python -m yok_scraper seed</code> komutunu çalıştırın.
-        </div>
-    }
-
+<div class="container">
     <div class="row g-4">
-        <!-- Öğretim Elemanları — veri hazır -->
-        <div class="col-md-6 col-lg-3">
-            <div class="card menu-card h-100">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-chalkboard-teacher me-2"></i>Öğretim Elemanları
-                        </h5>
-                        <span class="badge bg-success">Hazır</span>
-                    </div>
-                    <p class="card-text">Akademik unvan, cinsiyet ve birim kırılımında öğretim elemanı sayıları</p>
-                    <div class="d-grid gap-2 mt-auto">
-                        <a href="@Url.Action("AkademikPersonel", "Yuksekogretim", new { year = yil })"
-                           class="btn btn-outline-primary">
-                            <i class="fas fa-chart-bar me-1"></i> Akademik Görevlere Göre
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Henüz ayrıştırıcısı yazılmamış gruplar -->
-        @foreach (var grup in new[]
+        @foreach (var kart in kartlar)
         {
-            new { Ad = "Öğrenci Sayıları", Ikon = "fa-user-graduate", Tablo = 11,
-                  Aciklama = "Öğrenim düzeyi, il/ilçe ve eğitim alanı kırılımında öğrenci sayıları" },
-            new { Ad = "Mezun Sayıları", Ikon = "fa-graduation-cap", Tablo = 13,
-                  Aciklama = "Mezuniyet istatistikleri; yaş, eğitim alanı ve kurum kırılımları" },
-            new { Ad = "Özet Tablolar", Ikon = "fa-table", Tablo = 8,
-                  Aciklama = "Kurum sayıları, akademik birim türleri ve genel dağılımlar" }
-        })
-        {
+            var kartHazir = kart.Baglantilar.Any(b => hazir.GetValueOrDefault(b.Anahtar));
             <div class="col-md-6 col-lg-3">
                 <div class="card menu-card h-100">
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <h5 class="card-title mb-0">
-                                <i class="fas @grup.Ikon me-2"></i>@grup.Ad
+                                <i class="fas @kart.Ikon me-2"></i>@kart.Ad
                             </h5>
-                            <span class="badge bg-secondary">Yakında</span>
+                            <span class="badge @(kartHazir ? "bg-success" : "bg-secondary")">
+                                @(kartHazir ? "Hazır" : "Yakında")
+                            </span>
                         </div>
-                        <p class="card-text">@grup.Aciklama</p>
-                        <div class="mt-auto">
-                            <div class="text-muted small mb-2">
-                                <i class="fas fa-info-circle me-1"></i>
-                                @grup.Tablo tablo indirildi, ayrıştırma bekliyor
-                            </div>
-                            <button class="btn btn-outline-secondary w-100" disabled>
-                                <i class="fas fa-lock me-1"></i> Hazırlanıyor
-                            </button>
+                        <p class="card-text">@kart.Aciklama</p>
+
+                        <div class="d-grid gap-2 mt-auto">
+                            @foreach (var bag in kart.Baglantilar)
+                            {
+                                if (hazir.GetValueOrDefault(bag.Anahtar))
+                                {
+                                    <a href="@Url.Action(bag.Aksiyon, "Yuksekogretim", new { year = yil })"
+                                       class="btn btn-outline-primary">
+                                        @bag.Ad
+                                        <i class="fas fa-arrow-right ms-1" style="font-size:11px;"></i>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-outline-secondary" disabled>
+                                        <i class="fas fa-lock me-1"></i> @bag.Ad
+                                    </button>
+                                }
+                            }
                         </div>
                     </div>
                 </div>
