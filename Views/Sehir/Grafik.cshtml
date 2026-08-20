@@ -1,130 +1,150 @@
-﻿@model List<YokIstatistikWeb.Models.SehirVeriViewModel>
+@model List<YokIstatistikWeb.Models.SehirVeriViewModel>
+@{
+    ViewData["Title"] = "Şehir Haritası";
 
-@functions {
-    private static string ConvertToGeoChartProvince(string sehir)
+    // ISOCode eşleşmeyen kayıtlar (kaynakta şehri boş olan kurumlar) haritaya girmiyor.
+    var haritada = Model.Where(v => !string.IsNullOrEmpty(v.ISOCode)).ToList();
+    var haritaDisi = Model.Where(v => string.IsNullOrEmpty(v.ISOCode)).ToList();
+
+    var enYuksek = Math.Max(haritada.Count > 0 ? haritada.Max(v => v.Toplam) : 1, 1);
+    var ilkOnIl = haritada.OrderByDescending(v => v.Toplam).Take(10).ToList();
+
+    // Sıralı ramp: tek renk, açıktan koyuya (kategorik palet değil)
+    var rampa = new[] { "#eaf1fa", "#c5daf2", "#94bde8", "#5b9add", "#2a78d6", "#1c5299" };
+    string RampRengi(int deger)
     {
-        // Türkçe karakter düzeltme
-        string normalized = sehir.ToUpper()
-            .Replace("İ", "I")
-            .Replace("I", "I")
-            .Replace("Ğ", "G")
-            .Replace("Ü", "U")
-            .Replace("Ş", "S")
-            .Replace("Ö", "O")
-            .Replace("Ç", "C");
-
-        return normalized switch
-        {
-            "ADANA" => "Adana",
-            "ADIYAMAN" => "Adiyaman",
-            "AFYONKARAHISAR" => "Afyonkarahisar",
-            "AGRI" => "Agri",
-            "AMASYA" => "Amasya",
-            "ANKARA" => "Ankara",
-            "ANTALYA" => "Antalya",
-            "ARTVIN" => "Artvin",
-            "AYDIN" => "Aydin",
-            "BALIKESIR" => "Balikesir",
-            "BILECIK" => "Bilecik",
-            "BINGOL" => "Bingol",
-            "BITLIS" => "Bitlis",
-            "BOLU" => "Bolu",
-            "BURDUR" => "Burdur",
-            "BURSA" => "Bursa",
-            "CANAKKALE" => "Canakkale",
-            "CANKIRI" => "Cankiri",
-            "CORUM" => "Corum",
-            "DENIZLI" => "Denizli",
-            "DIYARBAKIR" => "Diyarbakir",
-            "EDIRNE" => "Edirne",
-            "ELAZIG" => "Elazig",
-            "ERZINCAN" => "Erzincan",
-            "ERZURUM" => "Erzurum",
-            "ESKISEHIR" => "Eskisehir",
-            "GAZIANTEP" => "Gaziantep",
-            "GIRESUN" => "Giresun",
-            "GUMUSHANE" => "Gumushane",
-            "HAKKARI" => "Hakkari",
-            "HATAY" => "Hatay",
-            "ISPARTA" => "Isparta",
-            "ISTANBUL" => "Istanbul",
-            "IZMIR" => "Izmir",
-            "KARS" => "Kars",
-            "KASTAMONU" => "Kastamonu",
-            "KAYSERI" => "Kayseri",
-            "KIRIKKALE" => "Kirikkale",
-            "KIRKLARELI" => "Kirklareli",
-            "KIRSEHIR" => "Kirsehir",
-            "KOCAELI" => "Kocaeli",
-            "KONYA" => "Konya",
-            "KUTAHYA" => "Kutahya",
-            "MALATYA" => "Malatya",
-            "MANISA" => "Manisa",
-            "MARDIN" => "Mardin",
-            "MERSIN" => "Mersin",
-            "MUGLA" => "Mugla",
-            "MUS" => "Mus",
-            "NEVSEHIR" => "Nevsehir",
-            "NIGDE" => "Nigde",
-            "ORDU" => "Ordu",
-            "RIZE" => "Rize",
-            "SAKARYA" => "Sakarya",
-            "SAMSUN" => "Samsun",
-            "SIIRT" => "Siirt",
-            "SINOP" => "Sinop",
-            "SIRNAK" => "Sirnak",
-            "SIVAS" => "Sivas",
-            "SANLIURFA" => "Sanliurfa",
-            "TEKIRDAG" => "Tekirdag",
-            "TOKAT" => "Tokat",
-            "TRABZON" => "Trabzon",
-            "TUNCELI" => "Tunceli",
-            "USAK" => "Usak",
-            "VAN" => "Van",
-            "YOZGAT" => "Yozgat",
-            "ZONGULDAK" => "Zonguldak",
-            _ => sehir // fallback
-        };
+        var indeks = (int)Math.Floor((double)deger / enYuksek * (rampa.Length - 1));
+        return rampa[Math.Clamp(indeks, 0, rampa.Length - 1)];
     }
+
+    var haritaVerisi = System.Text.Json.JsonSerializer.Serialize(
+        haritada.Select(v => new { kod = v.ISOCode, sehir = v.Sehir, toplam = v.Toplam }));
+
+    // Dağılım aşırı çarpık: İstanbul tek başına ikinci sıranın iki katı.
+    // Doğrusal ölçekte iller neredeyse tamamen beyaz kalıyor, bu yüzden
+    // renk durakları nicelik dilimlerinden (quantile) üretiliyor.
+    //
+    // GeoChart colorAxis'te values ve colors AYNI uzunlukta olmak zorunda,
+    // bu yüzden ramp uzunluğu kadar durak üretip eşit sayıda renkle eşliyoruz.
+    var sirali = haritada.Select(v => v.Toplam).OrderBy(x => x).ToList();
+    int Nicelik(double p) => sirali.Count == 0 ? 0
+        : sirali[Math.Clamp((int)Math.Round(p * (sirali.Count - 1)), 0, sirali.Count - 1)];
+
+    var duraklar = Enumerable.Range(0, rampa.Length)
+        .Select(i => Nicelik((double)i / (rampa.Length - 1)))
+        .Distinct()
+        .OrderBy(x => x)
+        .ToList();
+
+    // Yinelenen nicelikler elendiyse renk sayısını da eşitle
+    var kullanilanRampa = rampa.Take(duraklar.Count).ToArray();
+
+    var esikJson = System.Text.Json.JsonSerializer.Serialize(duraklar);
+    var rampaJson = System.Text.Json.JsonSerializer.Serialize(kullanilanRampa);
 }
 
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">@ViewBag.YilGoster öğretim yılı</div>
+        <h2>Şehirlere göre öğretim elemanı</h2>
+        <p class="lead mb-0">@haritada.Count ilde @haritada.Sum(v => v.Toplam).ToString("N0") öğretim elemanı</p>
+    </div>
+</div>
 
-<!-- Google Charts -->
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<div class="container">
+    <div class="row g-4">
+        <!-- HARİTA -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="kart-baslik d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="card-title">Türkiye il haritası</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="num" style="font-size:11px; color:var(--metin-soluk);">0</span>
+                        <div class="d-flex" style="height:10px; border-radius:2px; overflow:hidden;">
+                            @foreach (var renk in rampa)
+                            {
+                                <div style="width:30px; height:100%; background:@renk;"></div>
+                            }
+                        </div>
+                        <span class="num" style="font-size:11px; color:var(--metin-soluk);">
+                            @enYuksek.ToString("N0")
+                        </span>
+                        <span style="font-size:11px; color:var(--metin-cok-soluk);">(nicelik dilimleri)</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="harita" style="width:100%; height:460px;"></div>
+                </div>
+            </div>
+        </div>
 
-<h2 class="mb-4 text-center">Türkiye Haritası Üzerinde Öğretim Elemanı Dağılımı</h2>
-<div id="geochart" style="width: 100%; height: 700px;"></div>
+        <!-- SIRALI LİSTE -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="kart-baslik"><div class="card-title">En yoğun iller</div></div>
+                <div class="card-body">
+                    @{ var sira = 1; }
+                    @foreach (var il in ilkOnIl)
+                    {
+                        var oran = (double)il.Toplam / enYuksek * 100;
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <span class="num" style="font-size:11px; color:var(--metin-cok-soluk); width:16px; flex-shrink:0;">@sira</span>
+                            <span style="font-size:12.5px; width:88px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@il.Sehir</span>
+                            <div class="cubuk" style="flex-grow:1; height:8px;">
+                                <div class="cubuk-dolu"
+                                     style="width:@oran.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)%; background:@RampRengi(il.Toplam);"></div>
+                            </div>
+                            <span class="num" style="font-size:12px; font-weight:600; width:54px; text-align:right; flex-shrink:0;">
+                                @il.Toplam.ToString("N0")
+                            </span>
+                        </div>
+                        sira++;
+                    }
 
+                    @if (haritaDisi.Any())
+                    {
+                        <div class="pt-3 mt-3" style="border-top:1px solid var(--cizgi-acik); font-size:11.5px; color:var(--metin-soluk); line-height:1.5;">
+                            @haritaDisi.Sum(v => v.Toplam).ToString("N0") kişilik veri, kaynakta şehri
+                            belirtilmediği için haritada yer almıyor.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
+@section Scripts {
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        const iller = @Html.Raw(haritaVerisi);
+        const esikler = @Html.Raw(esikJson);
+        const rampa = @Html.Raw(rampaJson);
 
-<script type="text/javascript">
-    google.charts.load('current', {
-        packages: ['geochart']
-        // mapsApiKey eklemene gerek yok, Türkiye için çalışır
-    });
+        google.charts.load('current', { packages: ['geochart'] });
+        google.charts.setOnLoadCallback(function () {
+            const veri = new google.visualization.DataTable();
+            veri.addColumn('string', 'Province');
+            veri.addColumn('number', 'Öğretim elemanı');
+            veri.addColumn({ type: 'string', role: 'tooltip' });
 
-    google.charts.setOnLoadCallback(drawRegionsMap);
+            iller.forEach(i => veri.addRow([
+                i.kod,
+                i.toplam,
+                i.sehir + ': ' + i.toplam.toLocaleString('tr-TR') + ' öğretim elemanı'
+            ]));
 
-    function drawRegionsMap() {
-            var data = google.visualization.arrayToDataTable([
-        ['Province', 'Toplam Öğretim Elemanı', {type: 'string', role: 'tooltip'}],
-        @foreach (var v in Model)
-        {
-                @Html.Raw("['" + v.ISOCode + "', " + v.Toplam + ", '" + v.Sehir + ": " + v.Toplam + " kişi'],")
-        }
-    ]);
-
-
-        var options = {
-            region: 'TR',
-            resolution: 'provinces',
-            colorAxis: { colors: ['#e0f2f1', '#00695c'] },
-            backgroundColor: '#f8f9fa',
-            datalessRegionColor: '#eeeeee',
-            defaultColor: '#cccccc'
-        };
-
-        var chart = new google.visualization.GeoChart(document.getElementById('geochart'));
-        chart.draw(data, options);
-    }
-</script>
+            new google.visualization.GeoChart(document.getElementById('harita')).draw(veri, {
+                region: 'TR',
+                resolution: 'provinces',
+                // Parçalı sıralı ölçek: eşikler nicelik dilimlerinden geliyor,
+                // böylece İstanbul'un uç değeri diğer illeri silikleştirmiyor.
+                colorAxis: { values: esikler, colors: rampa },
+                backgroundColor: 'transparent',
+                datalessRegionColor: '#f0f2f5',
+                defaultColor: '#dfe3e8',
+                legend: 'none'
+            });
+        });
+    </script>
+}

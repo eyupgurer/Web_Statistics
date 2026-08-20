@@ -1,168 +1,178 @@
-﻿@model Tuple<YokIstatistikWeb.Models.Universite, YokIstatistikWeb.Models.Universite>
-
+@model Tuple<YokIstatistikWeb.Models.Universite, YokIstatistikWeb.Models.Universite>
+@using YokIstatistikWeb.Models
+@using YokIstatistikWeb.Services
 @{
-    var u1 = Model.Item1;
-    var u2 = Model.Item2;
+    ViewData["Title"] = "Karşılaştır";
 
-    int Toplam(IEnumerable<int?> sayilar) => sayilar.Sum(x => x ?? 0);
+    var secenekler = (List<Universite>)(ViewBag.Secenekler ?? new List<Universite>());
 
-    var toplam1 = u1.birimler.Sum(b => b.toplam_toplam ?? 0);
-    var toplam2 = u2.birimler.Sum(b => b.toplam_toplam ?? 0);
+    (string Ad, int Erkek, int Kadin)[] Unvanlar(Universite u)
+    {
+        var b = u.birimler ?? new List<Birim>();
+        return new[]
+        {
+            ("Profesör",             b.Sum(x => x.profesor_erkek ?? 0),             b.Sum(x => x.profesor_kadin ?? 0)),
+            ("Doçent",               b.Sum(x => x.docent_erkek ?? 0),               b.Sum(x => x.docent_kadin ?? 0)),
+            ("Doktor öğr. üyesi",    b.Sum(x => x.doktor_ogretim_uyesi_erkek ?? 0), b.Sum(x => x.doktor_ogretim_uyesi_kadin ?? 0)),
+            ("Öğretim görevlisi",    b.Sum(x => x.ogretim_gorevlisi_erkek ?? 0),    b.Sum(x => x.ogretim_gorevlisi_kadin ?? 0)),
+            ("Araştırma görevlisi",  b.Sum(x => x.arastirma_gorevlisi_erkek ?? 0),  b.Sum(x => x.arastirma_gorevlisi_kadin ?? 0)),
+        };
+    }
 
-    var ortalama1 = toplam1 / Math.Max(1, u1.birimler.Count);
-    var ortalama2 = toplam2 / Math.Max(1, u2.birimler.Count);
-
-    var turler1 = new[] {
-        Toplam(u1.birimler.Select(b => b.profesor_toplam)),
-        Toplam(u1.birimler.Select(b => b.docent_toplam)),
-        Toplam(u1.birimler.Select(b => b.doktor_ogretim_uyesi_toplam)),
-        Toplam(u1.birimler.Select(b => b.ogretim_gorevlisi_toplam)),
-        Toplam(u1.birimler.Select(b => b.arastirma_gorevlisi_toplam))
-    };
-
-    var turler2 = new[] {
-        Toplam(u2.birimler.Select(b => b.profesor_toplam)),
-        Toplam(u2.birimler.Select(b => b.docent_toplam)),
-        Toplam(u2.birimler.Select(b => b.doktor_ogretim_uyesi_toplam)),
-        Toplam(u2.birimler.Select(b => b.ogretim_gorevlisi_toplam)),
-        Toplam(u2.birimler.Select(b => b.arastirma_gorevlisi_toplam))
-    };
-
-    var erkekKadin1 = new[] {
-        Toplam(u1.birimler.Select(b => b.toplam_erkek)),
-        Toplam(u1.birimler.Select(b => b.toplam_kadin))
-    };
-
-    var erkekKadin2 = new[] {
-        Toplam(u2.birimler.Select(b => b.toplam_erkek)),
-        Toplam(u2.birimler.Select(b => b.toplam_kadin))
-    };
+    string Yuzde(double d) => d.ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
 }
 
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">@ViewBag.YilGoster öğretim yılı</div>
+        <h2>Karşılaştır</h2>
+        <p class="lead mb-0">İki üniversiteyi yan yana inceleyin</p>
+    </div>
+</div>
 
-<h2 class="text-center mt-4 mb-5 fw-bold text-uppercase">
-    @Html.Raw(u1.universite) VS @Html.Raw(u2.universite)
-</h2>
+<div class="container">
 
-<div class="row mb-5">
-    <div class="col-md-6">
-        <div class="p-4 shadow rounded bg-white">
-            <h4 class="mb-3 text-primary">@Html.Raw(u1.universite)</h4>
-            <span class="badge bg-secondary mb-2">Şehir: @u1.sehir</span><br />
-            <span class="badge bg-info text-dark mb-2">Tür: @u1.tur</span><br />
-            <span class="badge bg-success">Toplam Öğretim Elemanı: @toplam1</span><br />
-            <span class="badge bg-warning text-dark mt-2">Birim Sayısı: @u1.birimler.Count</span><br />
-            <span class="badge bg-dark text-white mt-2">Ortalama: @ortalama1 kişi/birim</span>
+    @if (TempData["Error"] is string hata)
+    {
+        <div class="alert alert-danger">@hata</div>
+    }
+
+    <!-- SEÇİCİLER -->
+    <form method="get" class="filter-form">
+        <input type="hidden" name="year" value="@ViewBag.Yil" />
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label" for="id1">1. üniversite</label>
+                <select class="form-select" id="id1" name="id1" style="border-left:3px solid var(--seri-1);">
+                    <option value="">Seçiniz…</option>
+                    @foreach (var u in secenekler)
+                    {
+                        <option value="@u.Id" selected="@(u.Id == (string?)ViewBag.Id1)">@u.universite</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="id2">2. üniversite</label>
+                <select class="form-select" id="id2" name="id2" style="border-left:3px solid var(--seri-2);">
+                    <option value="">Seçiniz…</option>
+                    @foreach (var u in secenekler)
+                    {
+                        <option value="@u.Id" selected="@(u.Id == (string?)ViewBag.Id2)">@u.universite</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">Karşılaştır</button>
+            </div>
         </div>
-    </div>
-    <div class="col-md-6">
-        <div class="p-4 shadow rounded bg-white">
-            <h4 class="mb-3 text-primary">@Html.Raw(u2.universite)</h4>
-            <span class="badge bg-secondary mb-2">Şehir: @u2.sehir</span><br />
-            <span class="badge bg-info text-dark mb-2">Tür: @u2.tur</span><br />
-            <span class="badge bg-success">Toplam Öğretim Elemanı: @toplam2</span><br />
-            <span class="badge bg-warning text-dark mt-2">Birim Sayısı: @u2.birimler.Count</span><br />
-            <span class="badge bg-dark text-white mt-2">Ortalama: @ortalama2 kişi/birim</span>
+    </form>
+
+    @if (Model is null)
+    {
+        <div class="card">
+            <div class="card-body text-center" style="padding:48px 24px;">
+                <p class="card-text mb-0">Karşılaştırmak için yukarıdan iki üniversite seçin.</p>
+            </div>
         </div>
-    </div>
+    }
+    else
+    {
+        var sol = Model.Item1;
+        var sag = Model.Item2;
+        var solUnvan = Unvanlar(sol);
+        var sagUnvan = Unvanlar(sag);
+
+        var solToplam = sol.toplam_toplam ?? 0;
+        var sagToplam = sag.toplam_toplam ?? 0;
+
+        var satirlar = new List<(string Etiket, double Sol, double Sag, string SolMetin, string SagMetin)>
+        {
+            ("Toplam öğretim elemanı", solToplam, sagToplam, solToplam.ToString("N0"), sagToplam.ToString("N0")),
+            ("Akademik birim", sol.birimler?.Count ?? 0, sag.birimler?.Count ?? 0,
+                (sol.birimler?.Count ?? 0).ToString("N0"), (sag.birimler?.Count ?? 0).ToString("N0")),
+        };
+
+        for (var i = 0; i < solUnvan.Length; i++)
+        {
+            var s = solUnvan[i].Erkek + solUnvan[i].Kadin;
+            var g = sagUnvan[i].Erkek + sagUnvan[i].Kadin;
+            satirlar.Add((solUnvan[i].Ad, s, g, s.ToString("N0"), g.ToString("N0")));
+        }
+
+        var solKadinOran = solToplam > 0 ? (double)(sol.toplam_kadin ?? 0) / solToplam * 100 : 0;
+        var sagKadinOran = sagToplam > 0 ? (double)(sag.toplam_kadin ?? 0) / sagToplam * 100 : 0;
+        satirlar.Add(("Kadın oranı", solKadinOran, sagKadinOran,
+            "%" + Yuzde(solKadinOran), "%" + Yuzde(sagKadinOran)));
+
+        <!-- BAŞA BAŞ -->
+        <div class="card mb-4">
+            <div class="kart-baslik"><div class="card-title">Özet karşılaştırma</div></div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3" style="font-size:13px; font-weight:600;">
+                    <span><i class="seri-nokta me-2" style="background:var(--seri-1);"></i>@sol.universite</span>
+                    <span>@sag.universite<i class="seri-nokta ms-2" style="background:var(--seri-2);"></i></span>
+                </div>
+
+                @foreach (var r in satirlar)
+                {
+                    var enb = Math.Max(Math.Max(r.Sol, r.Sag), 1);
+                    <div class="karsi-satir">
+                        <div class="d-flex align-items-center justify-content-end gap-3">
+                            <span class="num" style="font-size:15px; font-weight:600;">@r.SolMetin</span>
+                            <div class="cubuk karsi-cubuk d-flex justify-content-end">
+                                <div class="cubuk-dolu" style="width:@Yuzde(r.Sol / enb * 100)%; background:var(--seri-1);"></div>
+                            </div>
+                        </div>
+                        <div class="text-center" style="font-size:12.5px; color:var(--metin-ikincil);">@r.Etiket</div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="cubuk karsi-cubuk">
+                                <div class="cubuk-dolu" style="width:@Yuzde(r.Sag / enb * 100)%; background:var(--seri-2);"></div>
+                            </div>
+                            <span class="num" style="font-size:15px; font-weight:600;">@r.SagMetin</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- UNVAN KIRILIMI -->
+        <div class="row g-4">
+            @foreach (var (kurum, unvan, renk) in new[]
+            {
+                (sol, solUnvan, "var(--seri-1)"),
+                (sag, sagUnvan, "var(--seri-2)")
+            })
+            {
+                var enYuksek = Math.Max(unvan.Max(u => u.Erkek + u.Kadin), 1);
+                <div class="col-lg-6">
+                    <div class="card h-100" style="border-top:3px solid @renk;">
+                        <div class="kart-baslik">
+                            <div class="card-title">@kurum.universite</div>
+                            <div class="kart-alt">
+                                @(string.IsNullOrWhiteSpace(kurum.sehir) ? "—" : kurum.sehir) ·
+                                @IstatistikServisi.TurGoster(kurum.tur) ·
+                                @(kurum.birimler?.Count ?? 0) birim
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var u in unvan.OrderByDescending(x => x.Erkek + x.Kadin))
+                            {
+                                var t = u.Erkek + u.Kadin;
+                                <div class="d-flex align-items-center gap-3 mb-3">
+                                    <span style="font-size:12px; width:140px; flex-shrink:0; color:var(--metin-ikincil);">@u.Ad</span>
+                                    <div class="cubuk" style="flex-grow:1; height:16px; border-radius:3px;">
+                                        <div class="cubuk-dolu"
+                                             style="width:@Yuzde((double)t / enYuksek * 100)%; background:@renk; border-radius:3px;"></div>
+                                    </div>
+                                    <span class="num" style="font-size:12px; font-weight:600; width:48px; text-align:right; flex-shrink:0;">
+                                        @t.ToString("N0")
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
-
-<div id="chart_total" style="width: 100%; height: 400px;"></div>
-<div id="chart_tur" style="width: 100%; height: 400px;" class="mt-5"></div>
-
-<div class="row mb-5 mt-5">
-    <div class="col-md-6">
-        <div id="pie1" style="width: 100%; height: 300px;"></div>
-    </div>
-    <div class="col-md-6">
-        <div id="pie2" style="width: 100%; height: 300px;"></div>
-    </div>
-</div>
-
-<div class="text-center mt-4">
-    <a class="btn btn-secondary" href="@Url.Action("Index", "Yuksekogretim")">← Ana Sayfa</a>
-</div>
-
-<script>
-    google.charts.load("current", { packages: ["corechart"] });
-    google.charts.setOnLoadCallback(drawAll);
-
-    function drawAll() {
-        drawTotal();
-        drawTur();
-        drawPie1();
-        drawPie2();
-    }
-
-    function drawTotal() {
-        var data = google.visualization.arrayToDataTable([
-            ["Üniversite", "Toplam", { role: "style" }],
-            [@Html.Raw("'" + u1.universite + "'"), @toplam1, "#007bff"],
-            [@Html.Raw("'" + u2.universite + "'"), @toplam2, "#28a745"]
-        ]);
-
-        var options = {
-            title: "Toplam Öğretim Elemanı Karşılaştırması",
-            legend: { position: "none" },
-            chartArea: { width: "60%" },
-            hAxis: { minValue: 0 }
-        };
-
-        var chart = new google.visualization.BarChart(document.getElementById("chart_total"));
-        chart.draw(data, options);
-    }
-
-    function drawTur() {
-        var data = google.visualization.arrayToDataTable([
-            ["Tür", @Html.Raw("'" + u1.universite + "'"), @Html.Raw("'" + u2.universite + "'")],
-            ["Profesör", @turler1[0], @turler2[0]],
-            ["Doçent", @turler1[1], @turler2[1]],
-            ["Dr. Öğr. Üyesi", @turler1[2], @turler2[2]],
-            ["Öğr. Görevlisi", @turler1[3], @turler2[3]],
-            ["Araş. Görevlisi", @turler1[4], @turler2[4]]
-        ]);
-
-        var options = {
-            title: "Öğretim Elemanı Türü Karşılaştırması",
-            chartArea: { width: "60%" },
-            hAxis: { minValue: 0 },
-            isStacked: false
-        };
-
-        var chart = new google.visualization.BarChart(document.getElementById("chart_tur"));
-        chart.draw(data, options);
-    }
-
-    function drawPie1() {
-        var data = google.visualization.arrayToDataTable([
-            ["Cinsiyet", "Kişi"],
-            ["Erkek", @erkekKadin1[0]],
-            ["Kadın", @erkekKadin1[1]]
-        ]);
-
-        var options = {
-            title: @Html.Raw("'" + u1.universite + " - Cinsiyet Dağılımı'") ,
-            is3D: true
-        };
-
-        var chart = new google.visualization.PieChart(document.getElementById("pie1"));
-        chart.draw(data, options);
-    }
-
-    function drawPie2() {
-        var data = google.visualization.arrayToDataTable([
-            ["Cinsiyet", "Kişi"],
-            ["Erkek", @erkekKadin2[0]],
-            ["Kadın", @erkekKadin2[1]]
-        ]);
-
-        var options = {
-            title: @Html.Raw("'" + u2.universite + " - Cinsiyet Dağılımı'") ,
-            is3D: true
-        };
-
-        var chart = new google.visualization.PieChart(document.getElementById("pie2"));
-        chart.draw(data, options);
-    }
-</script>

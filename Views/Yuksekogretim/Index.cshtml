@@ -1,306 +1,198 @@
-﻿@model List<YokIstatistikWeb.Models.Universite>
-
+@model List<YokIstatistikWeb.Models.Universite>
+@using YokIstatistikWeb.Services
 @{
-ViewData["Title"] = "Üniversite İstatistikleri";
+    ViewData["Title"] = "Üniversiteler";
 
-var toplamUni = Model.Count;
-var toplamOgretimElemani = Model.Sum(u => u.birimler.Sum(b => b.toplam_toplam ?? 0));
-var devletSayisi = Model.Count(u => u.tur.ToUpper() == "DEVLET");
-var vakifSayisi = Model.Count(u => u.tur.ToUpper() == "VAKIF");
-var vakifMyoSayisi = Model.Count(u => u.tur.ToUpper() == "VAKIF MYO" );
-var enBuyuk = Model
-.OrderByDescending(u => u.birimler.Sum(b => b.toplam_toplam ?? 0))
-.FirstOrDefault();
+    // YÖK'ün resmî üniversite toplamı kullanılıyor; birimleri toplamak kaynak
+    // verideki tutarsızlıklar yüzünden bazı yıllarda sapıyor.
+    int Toplam(YokIstatistikWeb.Models.Universite u) => u.toplam_toplam ?? 0;
 
-var modelData = Model.Select(u => new
-{
-universite = u.universite,
-tur = u.tur,
-sehir = u.sehir,
-toplam = u.birimler.Sum(b => b.toplam_toplam ?? 0)
-}).ToList();
+    var toplamKurum = Model.Count;
+    var toplamKisi = Model.Sum(Toplam);
+    var enBuyukler = Model.OrderByDescending(Toplam).Take(10).ToList();
+    var enYuksek = enBuyukler.FirstOrDefault() is { } ilk ? Math.Max(Toplam(ilk), 1) : 1;
 
-var jsonData = System.Text.Json.JsonSerializer.Serialize(modelData);
-
-// Yıl seçenekleri için liste
-var yillar = new[] { "2023_2024", "2022_2023", "2021_2022", "2020_2021" };
-}
-
-<!-- Google Charts -->
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-<!-- BAŞLIK -->
-<div class="mb-4">
-    <h2>@ViewBag.YilGoster Yükseköğretim Akademik Personel Verileri</h2>
-</div>
-
-@if (TempData["Error"] != null)
-{
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    @TempData["Error"]
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-}
-
-<!-- BİLGİ KARTLARI -->
-<div class="row text-center mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="stats-card p-3 rounded">
-            <div class="stats-title">Toplam Üniversite</div>
-            <div class="stats-value">@toplamUni</div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card p-3 rounded">
-            <div class="stats-title">Toplam Öğretim Elemanı</div>
-            <div class="stats-value text-success">@toplamOgretimElemani</div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card p-3 rounded">
-            <div class="stats-title">Devlet / Vakıf / Vakıf Myo</div>
-            <div class="stats-value text-dark">@devletSayisi Devlet / @vakifSayisi Vakıf / @vakifMyoSayisi Vakıf Myo</div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card p-3 rounded">
-            <div class="stats-title">En Büyük Üniversite</div>
-            <div class="text-danger fw-semibold">@enBuyuk?.universite</div>
-            <span class="badge bg-danger">@enBuyuk?.birimler.Sum(b => b.toplam_toplam ?? 0) kişi</span>
-        </div>
-    </div>
-</div>
-<!-- KARŞILAŞTIRMA FORMU -->
-<div class="row mb-4">
-    <div class="col-md-5">
-        <label class="form-label">1. Üniversite:</label>
-        <select id="uni1" class="form-select">
-            <option value="">Seçiniz</option>
-            @foreach (var uni in Model.OrderBy(x => x.universite))
-            {
-            <option value="@uni.Id">@uni.universite</option>
-            }
-        </select>
-    </div>
-    <div class="col-md-5">
-        <label class="form-label">2. Üniversite:</label>
-        <select id="uni2" class="form-select">
-            <option value="">Seçiniz</option>
-            @foreach (var uni in Model.OrderBy(x => x.universite))
-            {
-            <option value="@uni.Id">@uni.universite</option>
-            }
-        </select>
-    </div>
-    <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" onclick="goToCompare()">Karşılaştır</button>
-    </div>
-</div>
-
-<!-- FİLTRE FORMU -->
-<div class="filter-form row mb-4">
-    <div class="col-md-4">
-        <label class="form-label">Üniversite Adı:</label>
-        <input type="text" id="aramaInput" class="form-control" placeholder="Üniversite ara...">
-    </div>
-    <div class="col-md-4">
-        <label class="form-label">Üniversite Türü:</label>
-        <select id="turFilter" class="form-select">
-            <option value="">Tümü</option>
-            <option value="DEVLET">Devlet</option>
-            <option value="VAKIF">Vakıf</option>
-            <option value="VAKIF MYO">Vakıf MYO</option>
-        </select>
-    </div>
-    <div class="col-md-4">
-        <label class="form-label">Şehir:</label>
-        <select id="sehirFilter" class="form-select">
-            <option value="">Tümü</option>
-            @foreach (var sehir in Model.Select(u => u.sehir).Distinct().OrderBy(x => x))
-            {
-            <option value="@sehir">@sehir</option>
-            }
-        </select>
-    </div>
-</div>
-
-<div class="mb-4">
-    <button class="btn btn-secondary" onclick="resetFilters()">Filtreleri Sıfırla</button>
-</div>
-
-<!-- GRAFİKLER -->
-<div class="chart-container">
-    <div id="chart_div" style="width: 100%; height: 500px;"></div>
-</div>
-
-<div class="chart-container">
-    <div id="piechart_div" style="width: 100%; height: 400px;"></div>
-</div>
-
-<!-- TABLO -->
-<table class="table table-bordered table-striped mt-4" id="uniTable">
-    <thead class="table-light">
-    <tr>
-        <th>Üniversite</th>
-        <th>Tür</th>
-        <th>Şehir</th>
-        <th>Toplam Öğretim Elemanı</th>
-    </tr>
-    </thead>
-    <tbody>
-    @foreach (var uni in Model)
+    var turRenkleri = new Dictionary<string, string>
     {
-    <tr>
-        <td>
-            <a href="@Url.Action("Detay", "Yuksekogretim", new { id = uni.Id, year = ViewBag.Yil })">
-                @uni.universite
-            </a>
-        </td>
-        <td>@uni.tur</td>
-        <td>@uni.sehir</td>
-        <td>@uni.birimler.Sum(b => b.toplam_toplam ?? 0)</td>
-    </tr>
-    }
-    </tbody>
-</table>
+        ["DEVLET"] = "var(--seri-1)", ["VAKIF"] = "var(--seri-2)", ["VAKIF MYO"] = "var(--seri-3)"
+    };
+    string TurRengi(string? t) => t is not null && turRenkleri.TryGetValue(t, out var r) ? r : "var(--metin-soluk)";
 
-<!-- GRAFİK SCRIPTLERİ -->
-<script type="text/javascript">
-    const allData = @Html.Raw(jsonData);
+    var grafikVerisi = System.Text.Json.JsonSerializer.Serialize(
+        enBuyukler.Select(u => new { ad = u.universite, deger = Toplam(u) }));
+}
 
-    google.charts.load('current', { packages: ['corechart'] });
-    google.charts.setOnLoadCallback(drawAll);
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">@ViewBag.YilGoster öğretim yılı</div>
+        <h2>Üniversiteler</h2>
+        <p class="lead mb-0">Akademik unvan ve cinsiyet kırılımında öğretim elemanı sayıları</p>
+    </div>
+</div>
 
-    function drawAll() {
-        drawChart(allData);
-        drawPieChart(allData);
+<div class="container">
+
+    @if (TempData["Error"] is string hata)
+    {
+        <div class="alert alert-danger">@hata</div>
     }
 
-    function drawChart(dataArray) {
-        const sorted = [...dataArray]
-            .sort((a, b) => b.toplam - a.toplam)
-            .slice(0, 10);
+    <!-- FİLTRELER — sunucu tarafında uygulanıyor, URL'de taşınıyor -->
+    <form method="get" class="filter-form">
+        <input type="hidden" name="year" value="@ViewBag.Yil" />
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label" for="search">Üniversite ara</label>
+                <input type="text" class="form-control" id="search" name="search"
+                       value="@ViewBag.Arama" placeholder="Ad ile ara…" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="tur">Tür</label>
+                <select class="form-select" id="tur" name="tur">
+                    <option value="">Tümü</option>
+                    @foreach (var t in (List<string>)ViewBag.Turler)
+                    {
+                        <option value="@t" selected="@(t == (string?)ViewBag.SeciliTur)">@IstatistikServisi.TurGoster(t)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="sehir">Şehir</label>
+                <select class="form-select" id="sehir" name="sehir">
+                    <option value="">Tümü</option>
+                    @foreach (var s in (List<string>)ViewBag.Sehirler)
+                    {
+                        <option value="@s" selected="@(s == (string?)ViewBag.SeciliSehir)">@s</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-1 d-grid">
+                <button type="submit" class="btn btn-primary">Filtrele</button>
+            </div>
+        </div>
+    </form>
 
-        const chartData = [
-            ["Üniversite", "Öğretim Elemanı Sayısı"],
-            ...sorted.map(u => [u.universite, u.toplam])
-        ];
+    <div class="row g-4">
+        <!-- TABLO -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="kart-baslik d-flex justify-content-between align-items-baseline">
+                    <div class="card-title">Kurumlar</div>
+                    <span class="num" style="font-size:12.5px; color:var(--metin-ikincil);">
+                        @toplamKurum kurum · @toplamKisi.ToString("N0") öğretim elemanı
+                    </span>
+                </div>
 
-        const data = google.visualization.arrayToDataTable(chartData);
+                @if (toplamKurum == 0)
+                {
+                    <div class="card-body">
+                        <p class="card-text mb-0">Bu filtrelerle eşleşen kurum bulunamadı.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>Üniversite</th>
+                                <th>Tür</th>
+                                <th>Şehir</th>
+                                <th class="text-end">Öğr. elemanı</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var uni in Model)
+                            {
+                                <tr>
+                                    <td style="font-weight:500;">
+                                        <a href="@Url.Action("Detay", "Yuksekogretim", new { id = uni.Id, year = ViewBag.Yil })">
+                                            @uni.universite
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="d-inline-flex align-items-center gap-2"
+                                              style="font-size:12px; color:var(--metin-ikincil);">
+                                            <span class="seri-nokta" style="background:@TurRengi(uni.tur);"></span>
+                                            @IstatistikServisi.TurGoster(uni.tur)
+                                        </span>
+                                    </td>
+                                    <td style="color:var(--metin-ikincil);">
+                                        @(string.IsNullOrWhiteSpace(uni.sehir) ? "—" : uni.sehir)
+                                    </td>
+                                    <td class="text-end num" style="font-weight:600;">@Toplam(uni).ToString("N0")</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
 
-        const options = {
-            title: 'En Çok Akademik Personeli Olan 10 Üniversite',
-            chartArea: { width: '60%' },
-            hAxis: { title: 'Öğretim Elemanı Sayısı', minValue: 0 },
-            vAxis: { title: 'Üniversite' }
-        };
+        <!-- EN BÜYÜK 10 -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="kart-baslik">
+                    <div class="card-title">En çok öğretim elemanı</div>
+                    <div class="kart-alt">Filtreye uyan ilk 10 kurum</div>
+                </div>
+                <div class="card-body">
+                    @foreach (var u in enBuyukler)
+                    {
+                        var oran = (double)Toplam(u) / enYuksek * 100;
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-baseline gap-3 mb-1">
+                                <span style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                    @u.universite
+                                </span>
+                                <span class="num" style="font-size:12px; font-weight:600; flex-shrink:0;">
+                                    @Toplam(u).ToString("N0")
+                                </span>
+                            </div>
+                            <div class="cubuk" style="height:8px;">
+                                <div class="cubuk-dolu"
+                                     style="width:@oran.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)%; background:var(--seri-1);"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
 
-        const chart = new google.visualization.BarChart(document.getElementById('chart_div'));
-        chart.draw(data, options);
-    }
+            <div class="chart-container">
+                <h5>Dağılım</h5>
+                <div class="kart-alt mb-3">İlk 10 kurumun payı</div>
+                <div id="pasta" style="width:100%; height:300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        function drawPieChart(dataArray) {
-        const counts = {};
-        dataArray.forEach(u => {
-            // Tür değerlerini standartlaştır
-            const tur = u.tur.trim().toUpperCase();
-            // Sadece bilinen türleri ekle
-            if (["DEVLET", "VAKIF", "VAKIF MYO"].includes(tur)) {
-                counts[tur] = (counts[tur] || 0) + 1;
-            }
+@section Scripts {
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        const enBuyukler = @Html.Raw(grafikVerisi);
+
+        google.charts.load('current', { packages: ['corechart'] });
+        google.charts.setOnLoadCallback(function () {
+            if (!enBuyukler.length) return;
+
+            const veri = new google.visualization.DataTable();
+            veri.addColumn('string', 'Üniversite');
+            veri.addColumn('number', 'Öğretim elemanı');
+            enBuyukler.forEach(u => veri.addRow([u.ad, u.deger]));
+
+            new google.visualization.PieChart(document.getElementById('pasta')).draw(veri, {
+                // Doğrulanmış kategorik palet; sıra sabit, döngüye girmiyor
+                colors: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4',
+                         '#4a3aa7', '#e34948', '#008300', '#5b9add', '#c98500'],
+                pieHole: 0.45,
+                chartArea: { width: '92%', height: '86%' },
+                legend: { position: 'none' },
+                pieSliceText: 'none',
+                tooltip: { textStyle: { fontName: 'IBM Plex Sans', fontSize: 12 } },
+                backgroundColor: 'transparent'
+            });
         });
-
-        const chartData = [
-            ["Tür", "Üniversite Sayısı"],
-            ...Object.entries(counts).map(([key, value]) => {
-                // Görüntüleme için düzgün formatlama
-                const displayName = key === "VAKIF MYO" ? "Vakıf MYO" :
-                                  key === "VAKIF" ? "Vakıf" : "Devlet";
-                return [displayName, value];
-            })
-        ];
-
-        const data = google.visualization.arrayToDataTable(chartData);
-
-        const options = {
-            title: 'Üniversite Türlerine Göre Dağılım',
-            is3D: true,
-            colors: ['#0000A0', '#FF0000', '#FFA500'], // Devlet, Vakıf, Vakıf MYO için sabit renkler
-            legend: { position: 'right' }
-        };
-
-        const chart = new google.visualization.PieChart(document.getElementById("piechart_div"));
-        chart.draw(data, options);
-    }
-
-    // Filtreleme
-    document.getElementById("turFilter").addEventListener("change", applyFilters);
-    document.getElementById("sehirFilter").addEventListener("change", applyFilters);
-    document.getElementById("aramaInput").addEventListener("input", applyFilters);
-
-    function applyFilters() {
-        const tur = document.getElementById("turFilter").value.toUpperCase();
-        const sehir = document.getElementById("sehirFilter").value.toUpperCase();
-        const arama = document.getElementById("aramaInput").value.toLowerCase();
-
-        const table = document.getElementById("uniTable").getElementsByTagName("tbody")[0];
-        const rows = table.getElementsByTagName("tr");
-
-        const filtered = [];
-
-        for (let i = 0; i < rows.length; i++) {
-            const cells = rows[i].getElementsByTagName("td");
-            const name = cells[0].innerText.trim();
-            const rowTur = cells[1].innerText.trim().toUpperCase();
-            const rowSehir = cells[2].innerText.trim().toUpperCase();
-            const rowNameLower = name.toLowerCase();
-
-            const turMatch = !tur || rowTur === tur;
-            const sehirMatch = !sehir || rowSehir === sehir;
-            const aramaMatch = !arama || rowNameLower.includes(arama);
-
-            if (turMatch && sehirMatch && aramaMatch) {
-                rows[i].style.display = "";
-                const toplam = parseInt(cells[3].textContent);
-                filtered.push({ universite: name, tur: rowTur, sehir: rowSehir, toplam });
-            } else {
-                rows[i].style.display = "none";
-            }
-        }
-
-        drawChart(filtered);
-        drawPieChart(filtered);
-    }
-
-    function resetFilters() {
-        document.getElementById("turFilter").value = "";
-        document.getElementById("sehirFilter").value = "";
-        document.getElementById("aramaInput").value = "";
-
-        const rows = document.getElementById("uniTable").getElementsByTagName("tbody")[0].getElementsByTagName("tr");
-        for (let i = 0; i < rows.length; i++) {
-            rows[i].style.display = "";
-        }
-
-        drawChart(allData);
-        drawPieChart(allData);
-    }
-    function goToCompare() {
-        const id1 = document.getElementById("uni1").value;
-        const id2 = document.getElementById("uni2").value;
-        const year = '@ViewBag.Yil';
-
-        if (!id1 || !id2 || id1 === id2) {
-            alert("Lütfen farklı iki üniversite seçin.");
-            return;
-        }
-
-        const url = `/Yuksekogretim/Karsilastir?id1=${encodeURIComponent(id1)}&id2=${encodeURIComponent(id2)}&year=${year}`;
-        window.location.href = url;
-    }
-
-    function changeYear(year) {
-        window.location.href = '/Yuksekogretim?year=' + year;
-    }
-
-</script>
+    </script>
+}

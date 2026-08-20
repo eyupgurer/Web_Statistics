@@ -1,106 +1,170 @@
-﻿@model YokIstatistikWeb.Models.Universite
-
-<!-- Google Charts yükleyici -->
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-<h2>@Model.universite</h2>
-<p><strong>Şehir:</strong> @Model.sehir</p>
-<p><strong>Tür:</strong> @Model.tur</p>
-
-<!-- Grafik alanları -->
-<div id="chart_div" style="width: 100%; height: 500px; margin-bottom: 40px;"></div>
-<div id="piechart_div" style="width: 100%; height: 400px; margin-bottom: 40px;"></div>
-
-<!-- Tablo alanı -->
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Birim Adı</th>
-            <th>Profesör</th>
-            <th>Doçent</th>
-            <th>Dr. Öğr. Üyesi</th>
-            <th>Öğretim Görevlisi</th>
-            <th>Araştırma Görevlisi</th>
-            <th>Toplam</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var b in Model.birimler)
-        {
-            <tr>
-                <td>@b.birim</td>
-                <td>@b.profesor_toplam</td>
-                <td>@b.docent_toplam</td>
-                <td>@b.doktor_ogretim_uyesi_toplam</td>
-                <td>@b.ogretim_gorevlisi_toplam</td>
-                <td>@b.arastirma_gorevlisi_toplam</td>
-                <td>@b.toplam_toplam</td>
-            </tr>
-        }
-    </tbody>
-</table>
-
-<a class="btn btn-primary" href="@Url.Action("Index")">← Geri Dön</a>
-
+@model YokIstatistikWeb.Models.Universite
+@using YokIstatistikWeb.Services
+@using YokIstatistikWeb.Models
 @{
-    // Bar chart verisi (birim bazlı toplam sayılar)
-    var grafikData = System.Text.Json.JsonSerializer.Serialize(
-        new[] { new[] { "Birim", "Toplam" } }
-        .Concat(Model.birimler.Select(b => new object[]
-        {
-            b.birim,
-            b.toplam_toplam ?? 0
-        }))
-    );
+    ViewData["Title"] = Model.universite;
 
-    // Pie chart verisi (toplam kadın/erkek oranı)
-    var toplamKadın = Model.birimler.Sum(b => b.toplam_kadin ?? 0);
-    var toplamErkek = Model.birimler.Sum(b => b.toplam_erkek ?? 0);
+    var birimler = (Model.birimler ?? new List<Birim>())
+        .OrderByDescending(b => b.toplam_toplam ?? 0)
+        .ToList();
 
-    var pieChartData = System.Text.Json.JsonSerializer.Serialize(
-        new[] {
-            new[] { "Cinsiyet", "Kişi Sayısı" },
-            new object[] { "Kadın", toplamKadın },
-            new object[] { "Erkek", toplamErkek }
-        }
-    );
+    var unvanlar = new (string Ad, int Erkek, int Kadin)[]
+    {
+        ("Profesör",             birimler.Sum(b => b.profesor_erkek ?? 0),             birimler.Sum(b => b.profesor_kadin ?? 0)),
+        ("Doçent",               birimler.Sum(b => b.docent_erkek ?? 0),               birimler.Sum(b => b.docent_kadin ?? 0)),
+        ("Doktor öğretim üyesi", birimler.Sum(b => b.doktor_ogretim_uyesi_erkek ?? 0), birimler.Sum(b => b.doktor_ogretim_uyesi_kadin ?? 0)),
+        ("Öğretim görevlisi",    birimler.Sum(b => b.ogretim_gorevlisi_erkek ?? 0),    birimler.Sum(b => b.ogretim_gorevlisi_kadin ?? 0)),
+        ("Araştırma görevlisi",  birimler.Sum(b => b.arastirma_gorevlisi_erkek ?? 0),  birimler.Sum(b => b.arastirma_gorevlisi_kadin ?? 0)),
+    }.OrderByDescending(u => u.Erkek + u.Kadin).ToArray();
+
+    var enYuksekUnvan = Math.Max(unvanlar.Length > 0 ? unvanlar.Max(u => u.Erkek + u.Kadin) : 1, 1);
+
+    var toplam = Model.toplam_toplam ?? 0;
+    var erkek = Model.toplam_erkek ?? 0;
+    var kadin = Model.toplam_kadin ?? 0;
+
+    string Yuzde(double d) => d.ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
 }
 
-<script type="text/javascript">
-    google.charts.load('current', { packages: ['corechart'] });
-    google.charts.setOnLoadCallback(drawBirimChart);
-    google.charts.setOnLoadCallback(drawPieChart);
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">
+            <a href="@Url.Action("Index", "Yuksekogretim", new { year = ViewBag.Yil })"
+               style="color:var(--metin-soluk);">Üniversiteler</a>
+            @if (!string.IsNullOrWhiteSpace(Model.sehir)) { <span> / @Model.sehir</span> }
+        </div>
 
-    function drawBirimChart() {
-        var data = google.visualization.arrayToDataTable(@Html.Raw(grafikData));
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-4">
+            <div>
+                <h2>@Model.universite</h2>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="d-inline-flex align-items-center gap-2"
+                          style="font-size:12px; background:#eef4fb; color:#1c4f86; border-radius:4px; padding:4px 10px; font-weight:500;">
+                        <span class="seri-nokta" style="background:var(--seri-1);"></span>
+                        @IstatistikServisi.TurGoster(Model.tur)
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(Model.sehir))
+                    {
+                        <span style="font-size:12px; color:var(--metin-ikincil);">@Model.sehir</span>
+                    }
+                    <span style="color:var(--cizgi-girdi);">·</span>
+                    <span class="num" style="font-size:12px; color:var(--metin-ikincil);">
+                        @birimler.Count akademik birim
+                    </span>
+                </div>
+            </div>
 
-        var options = {
-            title: 'Birimlere Göre Öğretim Elemanı Sayısı',
-            chartArea: { width: '60%' },
-            hAxis: {
-                title: 'Toplam Öğretim Elemanı',
-                minValue: 0
-            },
-            vAxis: {
-                title: 'Birim'
-            }
-        };
+            <div class="kpi-serit" style="grid-template-columns:repeat(3,minmax(0,1fr)); min-width:320px;">
+                <div class="kpi" style="padding:13px 20px;">
+                    <div class="kpi-etiket" style="margin-bottom:5px;">Öğretim elemanı</div>
+                    <div class="kpi-deger num" style="font-size:21px;">@toplam.ToString("N0")</div>
+                </div>
+                <div class="kpi" style="padding:13px 20px;">
+                    <div class="kpi-etiket" style="margin-bottom:5px;">Erkek</div>
+                    <div class="kpi-deger num" style="font-size:21px;">@erkek.ToString("N0")</div>
+                </div>
+                <div class="kpi" style="padding:13px 20px;">
+                    <div class="kpi-etiket" style="margin-bottom:5px;">Kadın</div>
+                    <div class="kpi-deger num" style="font-size:21px;">@kadin.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        var chart = new google.visualization.BarChart(document.getElementById('chart_div'));
-        chart.draw(data, options);
-    }
+<div class="container">
+    <div class="row g-4">
+        <!-- UNVAN DAĞILIMI -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="kart-baslik"><div class="card-title">Akademik unvan dağılımı</div></div>
+                <div class="card-body">
+                    @foreach (var u in unvanlar)
+                    {
+                        var t = u.Erkek + u.Kadin;
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <span style="font-size:12.5px; width:150px; flex-shrink:0;">@u.Ad</span>
+                            <div class="cubuk" style="flex-grow:1; height:20px; border-radius:3px;">
+                                <div class="cubuk-dolu"
+                                     style="width:@Yuzde((double)t / enYuksekUnvan * 100)%; background:var(--seri-1); border-radius:3px;"></div>
+                            </div>
+                            <span class="num" style="font-size:12.5px; font-weight:600; width:52px; text-align:right; flex-shrink:0;">
+                                @t.ToString("N0")
+                            </span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
 
-    function drawPieChart() {
-        var data = google.visualization.arrayToDataTable(@Html.Raw(pieChartData));
+        <!-- CİNSİYET -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="kart-baslik"><div class="card-title">Unvana göre cinsiyet dağılımı</div></div>
+                <div class="card-body">
+                    <div class="lejant mb-3">
+                        <span><i class="seri-nokta" style="background:var(--seri-1);"></i>Erkek</span>
+                        <span><i class="seri-nokta" style="background:var(--seri-2);"></i>Kadın</span>
+                    </div>
 
-        var options = {
-            title: 'Kadın/Erkek Öğretim Elemanı Dağılımı',
-            is3D: true,
-            pieSliceText: 'value',
-            legend: { position: 'right' }
-        };
+                    @foreach (var u in unvanlar)
+                    {
+                        var t = u.Erkek + u.Kadin;
+                        if (t == 0) { continue; }
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1" style="font-size:12.5px;">
+                                <span>@u.Ad</span>
+                                <span class="num" style="color:var(--metin-ikincil);">
+                                    %@Yuzde((double)u.Kadin / t * 100) kadın
+                                </span>
+                            </div>
+                            <div class="yigin" style="height:14px;">
+                                <div style="width:@Yuzde((double)u.Erkek / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
+                                <div style="width:@Yuzde((double)u.Kadin / t * 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
 
-        var chart = new google.visualization.PieChart(document.getElementById('piechart_div'));
-        chart.draw(data, options);
-    }
-</script>
+        <!-- BİRİM TABLOSU -->
+        <div class="col-12">
+            <div class="card">
+                <div class="kart-baslik d-flex justify-content-between align-items-baseline">
+                    <div class="card-title">Akademik birimler</div>
+                    <span class="num" style="font-size:12.5px; color:var(--metin-ikincil);">@birimler.Count birim</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Birim</th>
+                            <th class="text-end">Prof.</th>
+                            <th class="text-end">Doç.</th>
+                            <th class="text-end">Dr. Öğr. Ü.</th>
+                            <th class="text-end">Öğr. Gör.</th>
+                            <th class="text-end">Arş. Gör.</th>
+                            <th class="text-end">Toplam</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var b in birimler)
+                        {
+                            <tr>
+                                <td style="font-weight:500;">@b.birim</td>
+                                <td class="text-end num" style="color:var(--metin-ikincil);">@((b.profesor_toplam ?? 0).ToString("N0"))</td>
+                                <td class="text-end num" style="color:var(--metin-ikincil);">@((b.docent_toplam ?? 0).ToString("N0"))</td>
+                                <td class="text-end num" style="color:var(--metin-ikincil);">@((b.doktor_ogretim_uyesi_toplam ?? 0).ToString("N0"))</td>
+                                <td class="text-end num" style="color:var(--metin-ikincil);">@((b.ogretim_gorevlisi_toplam ?? 0).ToString("N0"))</td>
+                                <td class="text-end num" style="color:var(--metin-ikincil);">@((b.arastirma_gorevlisi_toplam ?? 0).ToString("N0"))</td>
+                                <td class="text-end num" style="font-weight:600;">@((b.toplam_toplam ?? 0).ToString("N0"))</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

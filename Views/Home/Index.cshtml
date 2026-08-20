@@ -1,138 +1,128 @@
-﻿@{
-ViewData["Title"] = "Ana Sayfa";
+@model YokIstatistikWeb.Models.GenelBakisViewModel
+@{
+    ViewData["Title"] = "Genel Bakış";
 }
 
-<div class="container mt-5">
-    <!-- Sayfa Header -->
-    <div class="page-header">
-        <h2 class="display-4">YÖK İstatistikleri</h2>
-        <p class="lead">Yükseköğretim Kurumları Genel Dağılımı</p>
-    </div>
-
-    <!-- İstatistik Kartları -->
-    <div class="row mb-5">
-        <div class="col-md-3 mb-3">
-            <div class="card stats-card border-primary">
-                <div class="card-body">
-                    <h3 class="card-title text-primary">@ViewBag.Toplam</h3>
-                    <p class="card-text">Toplam Kurum</p>
-                </div>
-            </div>
+<div class="page-header">
+    <div class="container d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <div class="ust-etiket">Yükseköğretim Kurumları</div>
+            <h2>Genel Bakış</h2>
+            <p class="lead mb-0">@Model.YilGoster öğretim yılı</p>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stats-card border-success">
-                <div class="card-body">
-                    <h3 class="card-title text-success">@ViewBag.Devlet</h3>
-                    <p class="card-text">Devlet Üniversitesi</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stats-card border-warning">
-                <div class="card-body">
-                    <h3 class="card-title text-warning">@ViewBag.Vakif</h3>
-                    <p class="card-text">Vakıf Üniversitesi</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stats-card border-info">
-                <div class="card-body">
-                    <h3 class="card-title text-info">@ViewBag.VakifMyo</h3>
-                    <p class="card-text">Vakıf MYO</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Google Charts Grafiği -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="chart-container">
-                <div class="card-header">
-                    <h4 class="mb-0">Yükseköğretim Kurumları Dağılımı</h4>
-                </div>
-                <div class="card-body">
-                    <div id="universityChart" style="width: 100%; height: 500px;"></div>
-                </div>
-            </div>
+        <div class="text-lg-end" style="font-size:12.5px; color:var(--metin-ikincil); line-height:1.5;">
+            Kaynak: YÖK Yükseköğretim İstatistikleri
         </div>
     </div>
 </div>
 
-@section Scripts {
-<script src="https://www.gstatic.com/charts/loader.js"></script>
-<script>
-    google.charts.load('current', { packages: ['corechart'] });
-    google.charts.setOnLoadCallback(drawUniversityChart);
+<div class="container">
 
-    function drawUniversityChart() {
-        // Chart data - grafikte 3 ayrı kategori
-        var data = google.visualization.arrayToDataTable([
-            ['Kurum Türü', 'Sayı'],
-            ['Devlet Üniversiteleri', @ViewBag.Devlet],
-            ['Vakıf Üniversiteleri', @ViewBag.Vakif],
-            ['Vakıf MYO', @ViewBag.VakifMyo]
-        ]);
-
-        // Chart options
-        var options = {
-            title: 'Türkiye\'de Yükseköğretim Kurumları Dağılımı',
-            titleTextStyle: {
-                fontSize: 20,
-                bold: true,
-                color: '#333'
-            },
-            pieHole: 0.4,
-            colors: ['#0000A0', '#FF0000', '#FFA500'],
-            legend: {
-                position: 'bottom',
-                textStyle: {
-                    fontSize: 14,
-                    color: '#555'
-                }
-            },
-            tooltip: {
-                textStyle: {
-                    fontSize: 14
-                }
-            },
-            chartArea: {
-                left: 50,
-                top: 80,
-                width: '90%',
-                height: '70%'
-            },
-            backgroundColor: 'transparent',
-            pieSliceTextStyle: {
-                fontSize: 14,
-                bold: true
-            }
-        };
-
-        // Draw the chart
-        var chart = new google.visualization.PieChart(document.getElementById('universityChart'));
-        chart.draw(data, options);
+    @if (!Model.VeriVar)
+    {
+        <div class="alert alert-warning">
+            <strong>@Model.YilGoster</strong> öğretim yılı için veritabanında kayıt bulunamadı.
+            Veriyi yüklemek için <code>python -m yok_scraper seed</code> komutunu çalıştırın.
+        </div>
     }
+    else
+    {
+        <!-- KPI ŞERİDİ -->
+        <div class="kpi-serit mb-4">
+            <div class="kpi">
+                <div class="kpi-etiket">Toplam kurum</div>
+                <div class="kpi-deger num">@Model.ToplamKurum</div>
+                <div class="kpi-alt">Devlet, vakıf ve vakıf MYO</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Öğretim elemanı</div>
+                <div class="kpi-deger num">@Model.ToplamOgretimElemani.ToString("N0")</div>
+                <div class="kpi-alt">Tüm kurumlar toplamı</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Kadın oranı</div>
+                <div class="kpi-deger num">%@Model.KadinOrani.ToString("N1")</div>
+                <div class="kpi-alt">@Model.ToplamKadin.ToString("N0") kadın öğretim elemanı</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Kurum başına ortalama</div>
+                <div class="kpi-deger num">@Model.KurumBasinaOrtalama.ToString("N0")</div>
+                <div class="kpi-alt">Öğretim elemanı sayısı</div>
+            </div>
+        </div>
 
-    // Grafik responsive olması için
-    window.addEventListener('resize', function() {
-        drawUniversityChart();
-    });
+        <div class="row g-4">
+            <!-- TÜR DAĞILIMI -->
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="kart-baslik">
+                        <div class="card-title">Türlerine göre kurumlar</div>
+                        <div class="kart-alt">Kurum sayısı ve öğretim elemanı dağılımı</div>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var tur in Model.Turler)
+                        {
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-baseline mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="seri-nokta" style="background:@tur.Renk;"></span>
+                                        <span style="font-size:13.5px; font-weight:500;">@tur.Ad</span>
+                                        <span class="num" style="font-size:12px; color:var(--metin-soluk);">
+                                            @tur.KurumSayisi kurum
+                                        </span>
+                                    </div>
+                                    <span class="num" style="font-size:13.5px; font-weight:600;">
+                                        @tur.KisiSayisi.ToString("N0")
+                                    </span>
+                                </div>
+                                <div class="cubuk">
+                                    <div class="cubuk-dolu" style="width:@tur.Oran.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)%; background:@tur.Renk;"></div>
+                                </div>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between align-items-baseline pt-3"
+                             style="border-top:1px solid var(--cizgi-acik);">
+                            <span style="font-size:13px; color:var(--metin-ikincil);">Toplam öğretim elemanı</span>
+                            <span class="num" style="font-size:18px; font-weight:600;">@Model.ToplamOgretimElemani.ToString("N0")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    // Sayfa yüklendiğinde animasyonları tetikle
-    document.addEventListener('DOMContentLoaded', function() {
-        // Kartlara hover efekti ekle
-        const cards = document.querySelectorAll('.stats-card');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-15px) scale(1.03)';
-            });
+            <!-- UNVAN DAĞILIMI -->
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="kart-baslik">
+                        <div class="card-title">Akademik unvana göre</div>
+                        <div class="kart-alt">Erkek ve kadın öğretim elemanı sayıları</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="lejant mb-3">
+                            <span><i class="seri-nokta" style="background:var(--seri-1);"></i>Erkek</span>
+                            <span><i class="seri-nokta" style="background:var(--seri-2);"></i>Kadın</span>
+                        </div>
 
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0) scale(1)';
-            });
-        });
-    });
-</script>
-}
+                        @foreach (var u in Model.Unvanlar)
+                        {
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-baseline mb-1">
+                                    <span style="font-size:12.5px;">@u.Ad</span>
+                                    <span class="num" style="font-size:12.5px; font-weight:600;">@u.Toplam.ToString("N0")</span>
+                                </div>
+                                <div class="yigin">
+                                    <div style="width:@u.ErkekOrani.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
+                                    <div style="width:@u.KadinOrani.ToString("N1", System.Globalization.CultureInfo.InvariantCulture)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
+                                </div>
+                                <div class="num d-flex justify-content-between"
+                                     style="font-size:11px; color:var(--metin-soluk); margin-top:4px;">
+                                    <span>E @u.Erkek.ToString("N0")</span>
+                                    <span>K @u.Kadin.ToString("N0")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
