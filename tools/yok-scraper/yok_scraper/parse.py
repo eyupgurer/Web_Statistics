@@ -385,11 +385,22 @@ PLANLAR = {
 # ---------------------------------------------------------------- çıktı
 
 def ndjson_yaz(kayitlar: list[dict], yol: Path) -> None:
-    """Kayıtları gzip'li NDJSON olarak yazar (repoya giren biçim)."""
+    """Kayıtları gzip'li NDJSON olarak yazar (repoya giren biçim).
+
+    Çıktı DETERMİNİSTİK olmak zorunda. gzip varsayılan olarak başlığa hem
+    yazma zamanını hem de dosya adını gömüyor; aynı veri iki kez işlendiğinde
+    dosyalar bayt bayt farklı çıkıyordu. Zamanlanmış iş akışı bunu "veri
+    değişti" sanıp her çalıştığında boş bir pull request açardı.
+
+    mtime=0 zaman damgasını, filename="" ise ad alanını devre dışı bırakıyor.
+    """
     yol.parent.mkdir(parents=True, exist_ok=True)
-    with gzip.open(yol, "wt", encoding="utf-8") as f:
-        for kayit in kayitlar:
-            f.write(json.dumps(kayit, ensure_ascii=False) + "\n")
+    govde = "".join(json.dumps(k, ensure_ascii=False) + "\n" for k in kayitlar).encode("utf-8")
+
+    with open(yol, "wb") as ham:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=ham, mtime=0) as f:
+            f.write(govde)
+
     print(f"  {yol.name}: {len(kayitlar)} kayıt, {yol.stat().st_size/1024:.0f} KB")
 
 

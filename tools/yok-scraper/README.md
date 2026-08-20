@@ -71,7 +71,18 @@ sistemde kurulu Google Chrome'a otomatik düşüyor — ek kurulum gerekmiyor.
 
 # İşlenmiş veriyi MongoDB'ye yükle
 ./.venv/bin/python -m yok_scraper seed
+
+# Portalda yeni bir öğretim yılı çıktı mı (yeni yıl varsa çıkış kodu 2)
+./.venv/bin/python -m yok_scraper years
 ```
+
+### Deterministik çıktı
+
+`parse` çıktısı bayt bayt tekrarlanabilir olmak zorunda: gzip varsayılan olarak
+başlığa yazma zamanını ve dosya adını gömüyor, bu yüzden aynı veri iki kez
+işlendiğinde dosyalar farklı çıkıyordu. Zamanlanmış iş akışı da bunu "veri
+değişti" sanıp her çalıştığında boş bir pull request açardı. `mtime=0` ve
+`filename=""` ile her iki alan da devre dışı.
 
 ## Kapsam
 
