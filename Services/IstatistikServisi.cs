@@ -19,11 +19,38 @@ namespace YokIstatistikWeb.Services
             _logger = logger;
         }
 
+        // Yıl listesi veritabanından okunuyor ve önbelleğe alınıyor: her istekte
+        // koleksiyon listelemek gereksiz, ama liste elle tutulmamalı.
+        private static IReadOnlyList<string>? _yillarOnbellek;
+        private static readonly object _yilKilidi = new();
+
+        /// <summary>Yedek liste: veritabanına ulaşılamazsa menü tamamen boş kalmasın.</summary>
+        private static readonly string[] YedekYillar =
+            { "2025_2026", "2024_2025", "2023_2024", "2022_2023", "2021_2022" };
+
         /// <summary>Menüde ve rotalarda kullanılan öğretim yılları (en yeniden eskiye).</summary>
-        public static readonly IReadOnlyList<string> Yillar = new[]
+        public IReadOnlyList<string> MevcutYillar()
         {
-            "2025_2026", "2024_2025", "2023_2024", "2022_2023", "2021_2022"
-        };
+            if (_yillarOnbellek is not null) return _yillarOnbellek;
+            lock (_yilKilidi)
+            {
+                if (_yillarOnbellek is not null) return _yillarOnbellek;
+                try
+                {
+                    var bulunan = _context.MevcutYillar();
+                    _yillarOnbellek = bulunan.Count > 0 ? bulunan : YedekYillar;
+                }
+                catch (Exception hata)
+                {
+                    _logger.LogError(hata, "Yıl listesi okunamadı, yedek liste kullanılıyor");
+                    _yillarOnbellek = YedekYillar;
+                }
+                return _yillarOnbellek;
+            }
+        }
+
+        /// <summary>Statik bağlamlar için (görünümler, yıl doğrulama).</summary>
+        public static IReadOnlyList<string> Yillar => _yillarOnbellek ?? YedekYillar;
 
         public static string VarsayilanYil => Yillar[0];
 
@@ -257,6 +284,46 @@ namespace YokIstatistikWeb.Services
                 _logger.LogError(hata, "{Onek}/{Yil} koleksiyon kontrolü başarısız", onek, yil);
                 return false;
             }
+        }
+
+
+        /// <summary>
+        /// Yıllara göre özet. Yalnızca veritabanında gerçekten bulunan yıllar
+        /// dönüyor; henüz yüklenmemiş yıl grafikte boşluk oluşturmuyor.
+        /// </summary>
+        public ZamanSerisiViewModel ZamanSerisi()
+        {
+            var model = new ZamanSerisiViewModel();
+
+            // Yillar en yeniden eskiye sıralı; grafikte eskiden yeniye gerekiyor.
+            foreach (var yil in Yillar.OrderBy(y => y))
+            {
+                if (!_context.KoleksiyonVar(MongoDbContext.OgretimElemani, yil))
+                    continue;
+
+                var kurumlar = Listele(yil);
+                if (kurumlar.Count == 0) continue;
+
+                var ozet = new YilOzeti
+                {
+                    Yil = yil,
+                    YilGoster = YilGoster(yil),
+                    KurumSayisi = kurumlar.Count,
+                    OgretimElemani = kurumlar.Sum(u => u.toplam_toplam ?? 0),
+                    OgretimElemaniErkek = kurumlar.Sum(u => u.toplam_erkek ?? 0),
+                    OgretimElemaniKadin = kurumlar.Sum(u => u.toplam_kadin ?? 0),
+                };
+
+                if (_context.KoleksiyonVar(MongoDbContext.Ogrenci, yil))
+                    ozet.Ogrenci = Ogrenciler(yil).Sum(u => u.toplam_toplam ?? 0);
+
+                if (_context.KoleksiyonVar(MongoDbContext.Mezun, yil))
+                    ozet.Mezun = Mezunlar(yil).Sum(u => u.toplam_toplam ?? 0);
+
+                model.Yillar.Add(ozet);
+            }
+
+            return model;
         }
 
         /// <summary>O yıl için veri yüklü mü? Boş koleksiyonda anlamsız sayfa göstermemek için.</summary>

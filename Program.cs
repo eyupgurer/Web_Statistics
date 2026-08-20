@@ -22,6 +22,17 @@ builder.Services.AddScoped<IstatistikServisi>();
 
 var app = builder.Build();
 
+// Yıl listesi önbelleğini açılışta doldur: ilk isteğin yedek listeyi görmesini
+// engelliyor. Mongo kapalıysa uygulama yine de açılıyor, yedek liste devreye
+// giriyor.
+using (var kapsam = app.Services.CreateScope())
+{
+    var servis = kapsam.ServiceProvider.GetRequiredService<IstatistikServisi>();
+    var yillar = servis.MevcutYillar();
+    app.Logger.LogInformation("Veritabanında {Sayi} öğretim yılı bulundu: {Yillar}",
+        yillar.Count, string.Join(", ", yillar));
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

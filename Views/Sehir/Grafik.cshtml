@@ -121,7 +121,8 @@
         const esikler = @Html.Raw(esikJson);
         const rampa = @Html.Raw(rampaJson);
 
-        google.charts.load('current', { packages: ['geochart'] });
+        // language: 'tr' -> binlik ayıracı nokta; sitenin geri kalanıyla tutarlı
+        google.charts.load('current', { packages: ['geochart'], language: 'tr' });
         google.charts.setOnLoadCallback(function () {
             const veri = new google.visualization.DataTable();
             veri.addColumn('string', 'Province');

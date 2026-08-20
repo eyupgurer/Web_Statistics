@@ -173,7 +173,8 @@
     <script>
         const enBuyukler = @Html.Raw(grafikVerisi);
 
-        google.charts.load('current', { packages: ['corechart'] });
+        // language: 'tr' -> binlik ayıracı nokta; sitenin geri kalanıyla tutarlı
+        google.charts.load('current', { packages: ['corechart'], language: 'tr' });
         google.charts.setOnLoadCallback(function () {
             if (!enBuyukler.length) return;
 

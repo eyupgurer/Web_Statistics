@@ -25,6 +25,16 @@ namespace YokIstatistikWeb.Controllers
             return View(model);
         }
 
+        /// <summary>Yıllar arası eğilim: tek yıla değil, seyre bakmak için.</summary>
+        [Route("Trend")]
+        public IActionResult Trend()
+        {
+            var model = _servis.ZamanSerisi();
+            ViewBag.Yil = model.Son?.Yil ?? IstatistikServisi.VarsayilanYil;
+            ViewBag.YilGoster = IstatistikServisi.YilGoster((string)ViewBag.Yil);
+            return View(model);
+        }
+
         public IActionResult Privacy() => View();
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

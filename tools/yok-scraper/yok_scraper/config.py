@@ -23,20 +23,16 @@ PROCESSED_DIR = REPO_ROOT / "data" / "processed"
 # Portalda "Yükseköğretim İstatistikleri" menüsündeki öğretim yılları.
 # Menü etiketi "2025-2026 Öğretim Yılı", indirilen dosya adı ise "2026_T028.xls":
 # dosya adındaki yıl, öğretim yılının BİTİŞ yılı.
+#
+# Portalda mevcut olan tüm yıllar. Yeni bir yıl yayımlandığında
+# `python -m yok_scraper years` bunu bildiriyor.
 YEARS = [
-    "2021-2022",
-    "2022-2023",
-    "2023-2024",
-    "2024-2025",
-    "2025-2026",
-]
-
-# Portalın tüm mevcut yılları (kapsamı genişletmek istersen YEARS'i buradan doldur)
-ALL_YEARS = [
     "2013-2014", "2014-2015", "2015-2016", "2016-2017", "2017-2018",
     "2018-2019", "2019-2020", "2020-2021", "2021-2022", "2022-2023",
     "2023-2024", "2024-2025", "2025-2026",
 ]
+
+ALL_YEARS = YEARS
 
 # Yıl sayfasındaki sekmeler. BÜLTEN sekmesi Excel değil PDF sunduğu için dışarıda.
 TABS = [

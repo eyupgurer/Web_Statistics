@@ -1,0 +1,229 @@
+@model YokIstatistikWeb.Models.ZamanSerisiViewModel
+@{
+    ViewData["Title"] = "Eğilim";
+
+    string Yuzde(double? d) => d is null ? "—"
+        : (d >= 0 ? "+" : "") + d.Value.ToString("N1") + "%";
+
+    var elemanDegisim = Model.Degisim(y => y.OgretimElemani);
+    var kurumDegisim  = Model.Degisim(y => y.KurumSayisi);
+    var ogrenciYillar = Model.Yillar.Where(y => y.OgrenciVar).ToList();
+    var ogrenciDegisim = ogrenciYillar.Count > 1
+        ? (double?)((double)(ogrenciYillar[^1].Ogrenci - ogrenciYillar[0].Ogrenci) / ogrenciYillar[0].Ogrenci * 100)
+        : null;
+
+    var seriJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.Yillar.Select(y => new
+        {
+            yil = y.YilGoster,
+            eleman = y.OgretimElemani,
+            erkek = y.OgretimElemaniErkek,
+            kadin = y.OgretimElemaniKadin,
+            kadinOrani = Math.Round(y.KadinOrani, 1),
+            ogrenci = y.Ogrenci,
+            mezun = y.Mezun,
+            kurum = y.KurumSayisi,
+        }));
+}
+
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">Yıllar arası karşılaştırma</div>
+        <h2>Eğilim</h2>
+        <p class="lead mb-0">
+            @if (Model.VeriVar)
+            {
+                @($"{Model.Ilk!.YilGoster} – {Model.Son!.YilGoster} arası {Model.Yillar.Count} öğretim yılı")
+            }
+            else
+            {
+                @("Henüz veri yüklenmemiş")
+            }
+        </p>
+    </div>
+</div>
+
+<div class="container">
+
+    @if (!Model.TrendCizilebilir)
+    {
+        <div class="alert alert-warning">
+            Eğilim çizmek için en az iki öğretim yılı gerekiyor.
+            Şu an <strong>@Model.Yillar.Count</strong> yıl yüklü.
+            Daha fazlasını yüklemek için <code>python -m yok_scraper seed</code> çalıştırın.
+        </div>
+    }
+    else
+    {
+        <div class="kpi-serit mb-4">
+            <div class="kpi">
+                <div class="kpi-etiket">Öğretim elemanı</div>
+                <div class="kpi-deger num">@Model.Son!.OgretimElemani.ToString("N0")</div>
+                <div class="kpi-alt">@Model.Ilk!.YilGoster’dan bu yana @Yuzde(elemanDegisim)</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Kurum</div>
+                <div class="kpi-deger num">@Model.Son.KurumSayisi.ToString("N0")</div>
+                <div class="kpi-alt">@Model.Ilk.YilGoster’dan bu yana @Yuzde(kurumDegisim)</div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Kadın oranı</div>
+                <div class="kpi-deger num">%@Model.Son.KadinOrani.ToString("N1")</div>
+                <div class="kpi-alt">
+                    @Model.Ilk.YilGoster’da %@Model.Ilk.KadinOrani.ToString("N1")
+                </div>
+            </div>
+            <div class="kpi">
+                <div class="kpi-etiket">Öğrenci</div>
+                <div class="kpi-deger num">
+                    @(Model.Son.OgrenciVar ? Model.Son.Ogrenci.ToString("N0") : "—")
+                </div>
+                <div class="kpi-alt">
+                    @(ogrenciDegisim is null ? "Karşılaştırma için yetersiz veri"
+                        : Model.Ilk.YilGoster + "’dan bu yana " + Yuzde(ogrenciDegisim))
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="chart-container">
+                    <h5>Öğretim elemanı sayısı</h5>
+                    <div class="kart-alt mb-3">Cinsiyete göre, öğretim yılına göre</div>
+                    <div id="elemanGrafik" style="width:100%; height:340px;"></div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="chart-container">
+                    <h5>Kadın oranı</h5>
+                    <div class="kart-alt mb-3">Öğretim elemanları içindeki pay</div>
+                    <div id="oranGrafik" style="width:100%; height:340px;"></div>
+                </div>
+            </div>
+
+            @if (ogrenciYillar.Count > 1)
+            {
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h5>Öğrenci ve mezun sayıları</h5>
+                        <div class="kart-alt mb-3">Önlisans ve lisans düzeyi</div>
+                        <div id="ogrenciGrafik" style="width:100%; height:320px;"></div>
+                    </div>
+                </div>
+            }
+
+            <div class="col-12">
+                <div class="card">
+                    <div class="kart-baslik d-flex justify-content-between align-items-baseline">
+                        <div class="card-title">Yıllara göre değerler</div>
+                        <span class="num" style="font-size:12.5px; color:var(--metin-ikincil);">
+                            @Model.Yillar.Count öğretim yılı
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>Öğretim yılı</th>
+                                <th class="text-end">Kurum</th>
+                                <th class="text-end">Öğretim elemanı</th>
+                                <th class="text-end">Erkek</th>
+                                <th class="text-end">Kadın</th>
+                                <th class="text-end">Kadın oranı</th>
+                                <th class="text-end">Öğrenci</th>
+                                <th class="text-end">Mezun</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var y in Model.Yillar)
+                            {
+                                <tr>
+                                    <td class="num" style="font-weight:500;">@y.YilGoster</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@y.KurumSayisi.ToString("N0")</td>
+                                    <td class="text-end num" style="font-weight:600;">@y.OgretimElemani.ToString("N0")</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@y.OgretimElemaniErkek.ToString("N0")</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@y.OgretimElemaniKadin.ToString("N0")</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">%@y.KadinOrani.ToString("N1")</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@(y.OgrenciVar ? y.Ogrenci.ToString("N0") : "—")</td>
+                                    <td class="text-end num" style="color:var(--metin-ikincil);">@(y.MezunVar ? y.Mezun.ToString("N0") : "—")</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        const seri = @Html.Raw(seriJson);
+
+        // Ortak çizgi grafik ayarları: ince marklar, geri çekilmiş ızgara,
+        // metin hep metin renginde — kimliği çizginin rengi taşıyor.
+        const temel = {
+            backgroundColor: 'transparent',
+            fontName: 'IBM Plex Sans',
+            chartArea: { left: 68, top: 24, width: '78%', height: '72%' },
+            lineWidth: 2,
+            pointSize: 8,
+            hAxis: {
+                textStyle: { fontSize: 11, color: '#5a6472' },
+                gridlines: { color: 'transparent' },
+                baselineColor: '#e3e7ec'
+            },
+            vAxis: {
+                textStyle: { fontSize: 11, color: '#8a94a3' },
+                gridlines: { color: '#eef1f4', count: 6 },
+                baselineColor: '#e3e7ec'
+            },
+            legend: { position: 'top', alignment: 'start',
+                      textStyle: { fontSize: 12, color: '#5a6472' } },
+            tooltip: { textStyle: { fontName: 'IBM Plex Sans', fontSize: 12 } }
+        };
+
+        // language: 'tr' -> binlik ayıracı nokta; sitenin geri kalanıyla tutarlı
+        google.charts.load('current', { packages: ['corechart'], language: 'tr' });
+        google.charts.setOnLoadCallback(function () {
+            if (seri.length < 2) return;
+
+            // Öğretim elemanı — erkek / kadın
+            const d1 = new google.visualization.DataTable();
+            d1.addColumn('string', 'Yıl');
+            d1.addColumn('number', 'Erkek');
+            d1.addColumn('number', 'Kadın');
+            seri.forEach(s => d1.addRow([s.yil, s.erkek, s.kadin]));
+            new google.visualization.LineChart(document.getElementById('elemanGrafik'))
+                .draw(d1, Object.assign({}, temel, { colors: ['#2a78d6', '#eb6834'] }));
+
+            // Kadın oranı — tek seri, lejant gerekmiyor (başlık zaten adlandırıyor)
+            const d2 = new google.visualization.DataTable();
+            d2.addColumn('string', 'Yıl');
+            d2.addColumn('number', 'Kadın oranı (%)');
+            seri.forEach(s => d2.addRow([s.yil, s.kadinOrani]));
+            new google.visualization.LineChart(document.getElementById('oranGrafik'))
+                .draw(d2, Object.assign({}, temel, {
+                    colors: ['#1baf7a'],
+                    legend: { position: 'none' },
+                    vAxis: Object.assign({}, temel.vAxis, { format: "#'%'" })
+                }));
+
+            // Öğrenci ve mezun — yalnızca verisi olan yıllar
+            const kap = document.getElementById('ogrenciGrafik');
+            if (kap) {
+                const d3 = new google.visualization.DataTable();
+                d3.addColumn('string', 'Yıl');
+                d3.addColumn('number', 'Öğrenci');
+                d3.addColumn('number', 'Mezun');
+                seri.filter(s => s.ogrenci > 0)
+                    .forEach(s => d3.addRow([s.yil, s.ogrenci, s.mezun || null]));
+                new google.visualization.LineChart(kap)
+                    .draw(d3, Object.assign({}, temel, { colors: ['#2a78d6', '#eda100'] }));
+            }
+        });
+    </script>
+}

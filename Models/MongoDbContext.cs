@@ -30,6 +30,24 @@ namespace YokIstatistikWeb.Models
         public IMongoCollection<Universite> GetCollectionForYear(string year) =>
             Koleksiyon<Universite>(OgretimElemani, year);
 
+        /// <summary>
+        /// Veritabanında verisi bulunan öğretim yılları (en yeniden eskiye).
+        /// Elle tutulan bir liste yerine koleksiyon adlarından okunuyor; veri
+        /// pipeline'ı yeni bir yıl yüklediğinde menüde kendiliğinden beliriyor.
+        /// </summary>
+        public List<string> MevcutYillar(string onek = OgretimElemani)
+        {
+            var desen = new MongoDB.Bson.BsonRegularExpression($"^{onek}_\\d{{4}}_\\d{{4}}$");
+            return _database.ListCollectionNames(new ListCollectionNamesOptions
+                {
+                    Filter = Builders<MongoDB.Bson.BsonDocument>.Filter.Regex("name", desen)
+                })
+                .ToList()
+                .Select(ad => ad[(onek.Length + 1)..])
+                .OrderByDescending(y => y)
+                .ToList();
+        }
+
         /// <summary>Veritabanında hangi koleksiyonlar var? Boş sayfa göstermemek için.</summary>
         public bool KoleksiyonVar(string onek, string yil) =>
             _database.ListCollectionNames(new ListCollectionNamesOptions

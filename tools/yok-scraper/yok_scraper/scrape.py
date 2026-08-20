@@ -150,6 +150,23 @@ def yil_indir(page: Page, donem: str) -> list[IndirilenTablo]:
     return kayitlar
 
 
+def _portali_ac(sayfa: Page, deneme: int = 3) -> bool:
+    """Portalı açar, geçici ağ hatalarında yeniden dener.
+
+    Uzun çekimlerde tek bir anlık DNS/bağlantı hatası bütün işi kaybettirmemeli.
+    """
+    for sira in range(1, deneme + 1):
+        try:
+            sayfa.goto(config.BASE_URL, wait_until="domcontentloaded")
+            _zk_bekle(sayfa, 2.5)
+            return True
+        except Exception as hata:                      # noqa: BLE001
+            print(f"    portal açılamadı ({sira}/{deneme}): {type(hata).__name__}")
+            if sira < deneme:
+                time.sleep(5 * sira)
+    return False
+
+
 def _tarayici_baslat(p, headless: bool):
     """Playwright'ın kendi Chromium'unu, yoksa sistemdeki Chrome'u kullanır.
 
@@ -178,8 +195,12 @@ def calistir(donemler: list[str] | None = None, headless: bool = True) -> list[I
         for donem in donemler:
             # Her yıl için temiz oturum: ZK'nın desktop state'i sekme geçişlerinde
             # birikip tembel yüklenen panelleri karıştırabiliyor.
-            sayfa.goto(config.BASE_URL, wait_until="domcontentloaded")
-            _zk_bekle(sayfa, 2.5)
+            #
+            # Navigasyon da yeniden denemeli: geçici bir ad çözümleme hatası
+            # (ERR_NAME_NOT_RESOLVED) uzun süren bir çekimi baştan öldürmemeli.
+            if not _portali_ac(sayfa):
+                print(f"  ! {donem} atlandı: portal açılamadı")
+                continue
             try:
                 tum_kayitlar.extend(yil_indir(sayfa, donem))
             except Exception as hata:                  # noqa: BLE001
@@ -187,12 +208,28 @@ def calistir(donemler: list[str] | None = None, headless: bool = True) -> list[I
 
         tarayici.close()
 
+    # Manifest birleştiriliyor: tek tek yıl çekildiğinde önceki yılların
+    # kaydı silinmemeli, yoksa 'parse' onları görmez.
     manifest = config.RAW_DIR / "manifest.json"
+    mevcut: list[dict] = []
+    if manifest.exists():
+        try:
+            mevcut = json.loads(manifest.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            print("  ! mevcut manifest okunamadı, yeniden oluşturuluyor")
+
+    # Bu çalıştırmada yenilenen dönemlerin eski kayıtları düşürülüyor
+    yenilenen = {k.donem for k in tum_kayitlar}
+    birlesik = [k for k in mevcut if k.get("donem") not in yenilenen]
+    birlesik.extend(asdict(k) for k in tum_kayitlar)
+    birlesik.sort(key=lambda k: (k.get("donem", ""), k.get("tablo_kodu", "")))
+
     manifest.write_text(
-        json.dumps([asdict(k) for k in tum_kayitlar], ensure_ascii=False, indent=2),
-        encoding="utf-8",
+        json.dumps(birlesik, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     toplam_mb = sum(k.boyut for k in tum_kayitlar) / 1024 / 1024
     print(f"\n{len(tum_kayitlar)} dosya, {toplam_mb:.1f} MB -> {config.RAW_DIR}")
+    print(f"Manifest toplam {len(birlesik)} kayıt "
+          f"({len({k.get('donem') for k in birlesik})} öğretim yılı)")
     print(f"Manifest: {manifest}")
     return tum_kayitlar
