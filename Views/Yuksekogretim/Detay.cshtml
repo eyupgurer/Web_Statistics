@@ -1,27 +1,33 @@
-@model YokIstatistikWeb.Models.Universite
+@model YokIstatistikWeb.Models.KurumProfiliViewModel
 @using YokIstatistikWeb.Services
 @using YokIstatistikWeb.Models
 @{
-    ViewData["Title"] = Model.universite;
+    var kurum = Model.OgretimElemani;
+    ViewData["Title"] = kurum.universite;
 
-    var birimler = (Model.birimler ?? new List<Birim>())
+    var birimler = (kurum.birimler ?? new List<Birim>())
         .OrderByDescending(b => b.toplam_toplam ?? 0)
         .ToList();
 
-    var unvanlar = new (string Ad, int Erkek, int Kadin)[]
+    (string Ad, int Erkek, int Kadin)[] UnvanKirilimi(List<Birim>? liste)
     {
-        ("Profesör",             birimler.Sum(b => b.profesor_erkek ?? 0),             birimler.Sum(b => b.profesor_kadin ?? 0)),
-        ("Doçent",               birimler.Sum(b => b.docent_erkek ?? 0),               birimler.Sum(b => b.docent_kadin ?? 0)),
-        ("Doktor öğretim üyesi", birimler.Sum(b => b.doktor_ogretim_uyesi_erkek ?? 0), birimler.Sum(b => b.doktor_ogretim_uyesi_kadin ?? 0)),
-        ("Öğretim görevlisi",    birimler.Sum(b => b.ogretim_gorevlisi_erkek ?? 0),    birimler.Sum(b => b.ogretim_gorevlisi_kadin ?? 0)),
-        ("Araştırma görevlisi",  birimler.Sum(b => b.arastirma_gorevlisi_erkek ?? 0),  birimler.Sum(b => b.arastirma_gorevlisi_kadin ?? 0)),
-    }.OrderByDescending(u => u.Erkek + u.Kadin).ToArray();
+        var b = liste ?? new List<Birim>();
+        return new[]
+        {
+            ("Profesör",             b.Sum(x => x.profesor_erkek ?? 0),             b.Sum(x => x.profesor_kadin ?? 0)),
+            ("Doçent",               b.Sum(x => x.docent_erkek ?? 0),               b.Sum(x => x.docent_kadin ?? 0)),
+            ("Doktor öğretim üyesi", b.Sum(x => x.doktor_ogretim_uyesi_erkek ?? 0), b.Sum(x => x.doktor_ogretim_uyesi_kadin ?? 0)),
+            ("Öğretim görevlisi",    b.Sum(x => x.ogretim_gorevlisi_erkek ?? 0),    b.Sum(x => x.ogretim_gorevlisi_kadin ?? 0)),
+            ("Araştırma görevlisi",  b.Sum(x => x.arastirma_gorevlisi_erkek ?? 0),  b.Sum(x => x.arastirma_gorevlisi_kadin ?? 0)),
+        }.OrderByDescending(u => u.Item2 + u.Item3).ToArray();
+    }
 
+    var unvanlar = UnvanKirilimi(kurum.birimler);
     var enYuksekUnvan = Math.Max(unvanlar.Length > 0 ? unvanlar.Max(u => u.Erkek + u.Kadin) : 1, 1);
 
-    var toplam = Model.toplam_toplam ?? 0;
-    var erkek = Model.toplam_erkek ?? 0;
-    var kadin = Model.toplam_kadin ?? 0;
+    var toplam = kurum.toplam_toplam ?? 0;
+    var erkek = kurum.toplam_erkek ?? 0;
+    var kadin = kurum.toplam_kadin ?? 0;
 
     string Yuzde(double d) => d.ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
 }
@@ -29,50 +35,67 @@
 <div class="page-header">
     <div class="container">
         <div class="ust-etiket">
-            <a href="@Url.Action("Index", "Yuksekogretim", new { year = ViewBag.Yil })"
+            <a href="@Url.Action("Index", "Yuksekogretim", new { year = Model.Yil })"
                style="color:var(--metin-soluk);">Üniversiteler</a>
-            @if (!string.IsNullOrWhiteSpace(Model.sehir)) { <span> / @Model.sehir</span> }
+            @if (!string.IsNullOrWhiteSpace(kurum.sehir)) { <span> / @kurum.sehir</span> }
         </div>
 
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-4">
-            <div>
-                <h2>@Model.universite</h2>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span class="d-inline-flex align-items-center gap-2"
-                          style="font-size:12px; background:#eef4fb; color:#1c4f86; border-radius:4px; padding:4px 10px; font-weight:500;">
-                        <span class="seri-nokta" style="background:var(--seri-1);"></span>
-                        @IstatistikServisi.TurGoster(Model.tur)
-                    </span>
-                    @if (!string.IsNullOrWhiteSpace(Model.sehir))
-                    {
-                        <span style="font-size:12px; color:var(--metin-ikincil);">@Model.sehir</span>
-                    }
-                    <span style="color:var(--cizgi-girdi);">·</span>
-                    <span class="num" style="font-size:12px; color:var(--metin-ikincil);">
-                        @birimler.Count akademik birim
-                    </span>
-                </div>
-            </div>
-
-            <div class="kpi-serit" style="grid-template-columns:repeat(3,minmax(0,1fr)); min-width:320px;">
-                <div class="kpi" style="padding:13px 20px;">
-                    <div class="kpi-etiket" style="margin-bottom:5px;">Öğretim elemanı</div>
-                    <div class="kpi-deger num" style="font-size:21px;">@toplam.ToString("N0")</div>
-                </div>
-                <div class="kpi" style="padding:13px 20px;">
-                    <div class="kpi-etiket" style="margin-bottom:5px;">Erkek</div>
-                    <div class="kpi-deger num" style="font-size:21px;">@erkek.ToString("N0")</div>
-                </div>
-                <div class="kpi" style="padding:13px 20px;">
-                    <div class="kpi-etiket" style="margin-bottom:5px;">Kadın</div>
-                    <div class="kpi-deger num" style="font-size:21px;">@kadin.ToString("N0")</div>
-                </div>
-            </div>
+        <h2>@kurum.universite</h2>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="d-inline-flex align-items-center gap-2"
+                  style="font-size:12px; background:#eef4fb; color:#1c4f86; border-radius:4px; padding:4px 10px; font-weight:500;">
+                <span class="seri-nokta" style="background:var(--seri-1);"></span>
+                @IstatistikServisi.TurGoster(kurum.tur)
+            </span>
+            @if (!string.IsNullOrWhiteSpace(kurum.sehir))
+            {
+                <span style="font-size:12px; color:var(--metin-ikincil);">@kurum.sehir</span>
+            }
+            <span style="color:var(--cizgi-girdi);">·</span>
+            <span class="num" style="font-size:12px; color:var(--metin-ikincil);">
+                @Model.YilGoster öğretim yılı
+            </span>
         </div>
     </div>
 </div>
 
 <div class="container">
+
+    <!-- ÖZET ŞERİT — dört veri grubu bir arada -->
+    <div class="kpi-serit mb-4">
+        <div class="kpi">
+            <div class="kpi-etiket">Öğretim elemanı</div>
+            <div class="kpi-deger num">@toplam.ToString("N0")</div>
+            <div class="kpi-alt">@birimler.Count akademik birim</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-etiket">Öğrenci</div>
+            <div class="kpi-deger num">@(Model.OgrenciVar ? Model.Ogrenci!.toplam_toplam!.Value.ToString("N0") : "—")</div>
+            <div class="kpi-alt">
+                @if (Model.OgrenciVar)
+                {
+                    @($"{Model.Ogrenci!.yeni_kayit_toplam ?? 0:N0} yeni kayıt")
+                }
+                else
+                {
+                    @("Önlisans ve lisans verisi yok")
+                }
+            </div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-etiket">Mezun</div>
+            <div class="kpi-deger num">@(Model.MezunVar ? Model.Mezun!.toplam_toplam!.Value.ToString("N0") : "—")</div>
+            <div class="kpi-alt">Önlisans ve lisans</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-etiket">Öğretim elemanı başına öğrenci</div>
+            <div class="kpi-deger num">
+                @(Model.OgrenciBasinaEleman is { } o ? o.ToString("N1") : "—")
+            </div>
+            <div class="kpi-alt">Kurum geneli</div>
+        </div>
+    </div>
+
     <div class="row g-4">
         <!-- UNVAN DAĞILIMI -->
         <div class="col-lg-6">
@@ -106,7 +129,6 @@
                         <span><i class="seri-nokta" style="background:var(--seri-1);"></i>Erkek</span>
                         <span><i class="seri-nokta" style="background:var(--seri-2);"></i>Kadın</span>
                     </div>
-
                     @foreach (var u in unvanlar)
                     {
                         var t = u.Erkek + u.Kadin;
@@ -114,9 +136,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between mb-1" style="font-size:12.5px;">
                                 <span>@u.Ad</span>
-                                <span class="num" style="color:var(--metin-ikincil);">
-                                    %@Yuzde((double)u.Kadin / t * 100) kadın
-                                </span>
+                                <span class="num" style="color:var(--metin-ikincil);">%@Yuzde((double)u.Kadin / t * 100) kadın</span>
                             </div>
                             <div class="yigin" style="height:14px;">
                                 <div style="width:@Yuzde((double)u.Erkek / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
@@ -127,6 +147,114 @@
                 </div>
             </div>
         </div>
+
+        <!-- ÖĞRENCİ VE MEZUN -->
+        @if (Model.OgrenciVar || Model.MezunVar)
+        {
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="kart-baslik">
+                        <div class="card-title">Öğrenci ve mezun</div>
+                        <div class="kart-alt">Önlisans ve lisans düzeyi</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="lejant mb-3">
+                            <span><i class="seri-nokta" style="background:var(--seri-1);"></i>Erkek</span>
+                            <span><i class="seri-nokta" style="background:var(--seri-2);"></i>Kadın</span>
+                        </div>
+
+                        @{
+                            var satirlar = new List<(string Ad, int E, int K)>();
+                            if (Model.OgrenciVar)
+                            {
+                                satirlar.Add(("Öğrenci", Model.Ogrenci!.toplam_erkek ?? 0, Model.Ogrenci.toplam_kadin ?? 0));
+                                satirlar.Add(("Yeni kayıt", Model.Ogrenci.yeni_kayit_erkek ?? 0, Model.Ogrenci.yeni_kayit_kadin ?? 0));
+                            }
+                            if (Model.MezunVar)
+                            {
+                                satirlar.Add(("Mezun", Model.Mezun!.toplam_erkek ?? 0, Model.Mezun.toplam_kadin ?? 0));
+                            }
+                        }
+
+                        @foreach (var (ad, e, k) in satirlar)
+                        {
+                            var t = e + k;
+                            if (t == 0) { continue; }
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-baseline mb-1" style="font-size:12.5px;">
+                                    <span>@ad</span>
+                                    <span class="num" style="font-weight:600;">@t.ToString("N0")</span>
+                                </div>
+                                <div class="yigin" style="height:14px;">
+                                    <div style="width:@Yuzde((double)e / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
+                                    <div style="width:@Yuzde((double)k / t * 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
+                                </div>
+                                <div class="num d-flex justify-content-between" style="font-size:11px; color:var(--metin-soluk); margin-top:4px;">
+                                    <span>E @e.ToString("N0")</span>
+                                    <span>K @k.ToString("N0")</span>
+                                </div>
+                            </div>
+                        }
+
+                        @if (Model.MezunVar && (Model.Mezun!.birimler?.Any() ?? false))
+                        {
+                            <div class="pt-3 mt-3" style="border-top:1px solid var(--cizgi-acik);">
+                                <div style="font-size:12px; color:var(--metin-ikincil); margin-bottom:8px;">
+                                    Birim türüne göre mezun
+                                </div>
+                                @foreach (var b in Model.Mezun.birimler.OrderByDescending(x => x.toplam_toplam ?? 0))
+                                {
+                                    <div class="d-flex justify-content-between" style="font-size:12px; padding:3px 0;">
+                                        <span style="color:var(--metin-ikincil);">@b.birim</span>
+                                        <span class="num">@((b.toplam_toplam ?? 0).ToString("N0"))</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- YABANCI UYRUKLU -->
+        @if (Model.YabanciVar)
+        {
+            var yu = Model.YabanciUyruklu!;
+            var yuUnvan = UnvanKirilimi(yu.birimler);
+            var yuToplam = yu.toplam_toplam ?? 0;
+            var yuEnYuksek = Math.Max(yuUnvan.Length > 0 ? yuUnvan.Max(u => u.Erkek + u.Kadin) : 1, 1);
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="kart-baslik d-flex justify-content-between align-items-baseline">
+                        <div>
+                            <div class="card-title">Yabancı uyruklu öğretim elemanı</div>
+                            <div class="kart-alt">
+                                Kurumun öğretim elemanlarının
+                                %@Yuzde(toplam > 0 ? (double)yuToplam / toplam * 100 : 0)’i
+                            </div>
+                        </div>
+                        <span class="num" style="font-size:18px; font-weight:600;">@yuToplam.ToString("N0")</span>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var u in yuUnvan)
+                        {
+                            var t = u.Erkek + u.Kadin;
+                            if (t == 0) { continue; }
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <span style="font-size:12.5px; width:150px; flex-shrink:0;">@u.Ad</span>
+                                <div class="cubuk" style="flex-grow:1; height:16px; border-radius:3px;">
+                                    <div class="cubuk-dolu"
+                                         style="width:@Yuzde((double)t / yuEnYuksek * 100)%; background:var(--seri-3); border-radius:3px;"></div>
+                                </div>
+                                <span class="num" style="font-size:12.5px; font-weight:600; width:40px; text-align:right; flex-shrink:0;">
+                                    @t.ToString("N0")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
 
         <!-- BİRİM TABLOSU -->
         <div class="col-12">

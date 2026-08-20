@@ -72,13 +72,13 @@ namespace YokIstatistikWeb.Controllers
 
             try
             {
-                var universite = _servis.Getir(yil, id);
-                if (universite is null)
+                var profil = _servis.KurumProfili(yil, id);
+                if (profil is null)
                 {
                     _logger.LogWarning("{Yil} yılında {Id} bulunamadı", yil, id);
                     return NotFound();
                 }
-                return View(universite);
+                return View(profil);
             }
             catch (Exception hata)
             {

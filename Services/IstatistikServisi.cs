@@ -326,6 +326,46 @@ namespace YokIstatistikWeb.Services
             return model;
         }
 
+
+        /// <summary>
+        /// Bir kurumun bütün veri gruplarını toplar. Gruplar ayrı koleksiyonlarda
+        /// ve ortak kimlik taşımıyorlar; eşleştirme üniversite adıyla yapılıyor.
+        /// </summary>
+        public KurumProfiliViewModel? KurumProfili(string yil, string id)
+        {
+            yil = YilDogrula(yil);
+            var ana = Getir(yil, id);
+            if (ana is null) return null;
+
+            var model = new KurumProfiliViewModel
+            {
+                OgretimElemani = ana,
+                Yil = yil,
+                YilGoster = YilGoster(yil),
+            };
+
+            T? AdIle<T>(string onek) where T : class
+            {
+                try
+                {
+                    return _context.Koleksiyon<T>(onek, yil)
+                        .Find(Builders<T>.Filter.Eq("universite", ana.universite))
+                        .FirstOrDefault();
+                }
+                catch (Exception hata)
+                {
+                    _logger.LogError(hata, "{Onek} kaydı okunamadı: {Ad}", onek, ana.universite);
+                    return null;
+                }
+            }
+
+            model.Ogrenci = AdIle<OgrenciKurum>(MongoDbContext.Ogrenci);
+            model.Mezun = AdIle<MezunKurum>(MongoDbContext.Mezun);
+            model.YabanciUyruklu = AdIle<Universite>(MongoDbContext.YabanciUyruklu);
+
+            return model;
+        }
+
         /// <summary>O yıl için veri yüklü mü? Boş koleksiyonda anlamsız sayfa göstermemek için.</summary>
         public bool VeriVar(string yil)
         {
