@@ -31,7 +31,7 @@ var yillar = new[] { "2023_2024", "2022_2023", "2021_2022", "2020_2021" };
 
 <!-- BAŞLIK -->
 <div class="mb-4">
-    <h2>@ViewBag.Yil Yükseköğretim Akademik Personel Verileri</h2>
+    <h2>@ViewBag.YilGoster Yükseköğretim Akademik Personel Verileri</h2>
 </div>
 
 @if (TempData["Error"] != null)
@@ -152,7 +152,7 @@ var yillar = new[] { "2023_2024", "2022_2023", "2021_2022", "2020_2021" };
     {
     <tr>
         <td>
-            <a href="@Url.Action("Detay", "Yuksekogretim", new { id = uni.Id, year = ViewBag.Yil.Replace("-", "_") })">
+            <a href="@Url.Action("Detay", "Yuksekogretim", new { id = uni.Id, year = ViewBag.Yil })">
                 @uni.universite
             </a>
         </td>
@@ -288,7 +288,7 @@ var yillar = new[] { "2023_2024", "2022_2023", "2021_2022", "2020_2021" };
     function goToCompare() {
         const id1 = document.getElementById("uni1").value;
         const id2 = document.getElementById("uni2").value;
-        const year = '@ViewBag.Yil'.replace('-', '_');
+        const year = '@ViewBag.Yil';
 
         if (!id1 || !id2 || id1 === id2) {
             alert("Lütfen farklı iki üniversite seçin.");

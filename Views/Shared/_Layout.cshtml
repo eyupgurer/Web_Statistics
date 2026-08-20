@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
@@ -33,12 +33,18 @@
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-university me-1"></i>Yükseköğretim İstatistikleri
                     </a>
+                    @* Yıl listesi tek kaynaktan geliyor: IstatistikServisi.Yillar.
+                       Önceden burada elle yazılıydı ve 2025-2026 hiç görünmüyordu. *@
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="/Yuksekogretim?year=2020_2021">2020-2021</a></li>
-                        <li><a class="dropdown-item" href="/Yuksekogretim?year=2021_2022">2021-2022</a></li>
-                        <li><a class="dropdown-item" href="/Yuksekogretim?year=2022_2023">2022-2023</a></li>
-                        <li><a class="dropdown-item" href="/Yuksekogretim?year=2023_2024">2023-2024</a></li>
-                        <li><a class="dropdown-item" href="/Yuksekogretim?year=2024_2025">2024-2025</a></li>
+                        @foreach (var yil in YokIstatistikWeb.Services.IstatistikServisi.Yillar)
+                        {
+                            <li>
+                                <a class="dropdown-item" asp-controller="Yuksekogretim"
+                                   asp-action="YilMenu" asp-route-year="@yil">
+                                    @YokIstatistikWeb.Services.IstatistikServisi.YilGoster(yil)
+                                </a>
+                            </li>
+                        }
                     </ul>
                 </li>
                 <li class="nav-item">
@@ -66,7 +72,7 @@
 <!-- FOOTER - Sadece alt bilgi -->
 <footer class="bg-dark text-center text-light mt-5 py-3 border-top">
     <div class="container">
-        <p class="mb-0">&copy; @DateTime.Now.Year YÖK İstatistikleri • Geliştirici: Numan |
+        <p class="mb-0">&copy; @DateTime.Now.Year YÖK İstatistikleri •
             <a href="#" class="text-info">Kullanım Koşulları</a> |
             <a href="#" class="text-info">Gizlilik Politikası</a> |
             <a href="#" class="text-info">Veri Kaynakları</a>
