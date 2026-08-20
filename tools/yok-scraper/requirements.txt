@@ -1,0 +1,9 @@
+# YÖK istatistik portalı ZK Framework tabanlı stateful bir SPA.
+# Statik indirme URL'i yok -> tarayıcı otomasyonu zorunlu.
+playwright==1.49.0
+
+# YÖK dosyaları OLE2 formatında eski .xls (Excel 97-2003).
+# openpyxl bu formatı okuyamaz; xlrd 2.x tam olarak .xls destekler.
+xlrd==2.0.1
+
+pymongo==4.10.1
