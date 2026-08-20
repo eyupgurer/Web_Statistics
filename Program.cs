@@ -1,5 +1,12 @@
+using System.Globalization;
 using YokIstatistikWeb.Models;
 using YokIstatistikWeb.Services;
+
+// Biçimlendirme makinenin yerel ayarına bağlı kalmasın: sayılar her ortamda
+// "189.868" görünsün, "189,868" değil.
+var kultur = new CultureInfo("tr-TR");
+CultureInfo.DefaultThreadCurrentCulture = kultur;
+CultureInfo.DefaultThreadCurrentUICulture = kultur;
 
 var builder = WebApplication.CreateBuilder(args);
 

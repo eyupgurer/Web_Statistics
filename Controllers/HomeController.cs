@@ -19,19 +19,10 @@ namespace YokIstatistikWeb.Controllers
         [Route("")]
         public IActionResult Index(string? year)
         {
-            var yil = IstatistikServisi.YilDogrula(year);
-
-            var (toplam, devlet, vakif, vakifMyo) = _servis.KurumSayilari(yil);
-
-            ViewBag.Yil = yil;
-            ViewBag.YilGoster = IstatistikServisi.YilGoster(yil);
-            ViewBag.Toplam = toplam;
-            ViewBag.Devlet = devlet;
-            ViewBag.Vakif = vakif;
-            ViewBag.VakifMyo = vakifMyo;
-            ViewBag.VeriVar = toplam > 0;
-
-            return View();
+            var model = _servis.GenelBakis(IstatistikServisi.YilDogrula(year));
+            ViewBag.Yil = model.Yil;
+            ViewBag.YilGoster = model.YilGoster;
+            return View(model);
         }
 
         public IActionResult Privacy() => View();

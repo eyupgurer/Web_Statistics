@@ -34,6 +34,22 @@ namespace YokIstatistikWeb.Services
         /// <summary>"2025_2026" -> "2025-2026" (ekranda gösterim için).</summary>
         public static string YilGoster(string yil) => yil.Replace("_", "-");
 
+        private static readonly System.Globalization.CultureInfo TrKultur = new("tr-TR");
+
+        /// <summary>
+        /// "VAKIF MYO" -> "Vakıf MYO". Veri tümü büyük harf geliyor; ekranda
+        /// bağırmasın diye başlık biçimine çevriliyor. Türkçe kültür şart:
+        /// değişmez kültürde "VAKIF" -> "Vakif" olur (ı yerine i).
+        /// </summary>
+        public static string TurGoster(string? tur)
+        {
+            if (string.IsNullOrWhiteSpace(tur)) return "";
+            return string.Join(' ', tur.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Length <= 3 && k == k.ToUpper(TrKultur)
+                    ? k                                        // MYO gibi kısaltmalar korunur
+                    : TrKultur.TextInfo.ToTitleCase(k.ToLower(TrKultur))));
+        }
+
         /// <summary>
         /// Filtrelenmiş üniversite listesi. Filtreler Mongo tarafında uygulanıyor;
         /// önceden tüm koleksiyon belleğe çekilip LINQ ile süzülüyordu.
@@ -116,6 +132,73 @@ namespace YokIstatistikWeb.Services
                 hepsi.Count(u => string.Equals(u.tur, "VAKIF", StringComparison.OrdinalIgnoreCase)),
                 hepsi.Count(u => string.Equals(u.tur, "VAKIF MYO", StringComparison.OrdinalIgnoreCase))
             );
+        }
+
+
+        /// <summary>Akademik unvanlar ve Birim modelindeki alan önekleri.</summary>
+        private static readonly (string Ad, Func<Birim, int?> Erkek, Func<Birim, int?> Kadin)[] Unvanlar =
+        {
+            ("Profesör",             b => b.profesor_erkek,             b => b.profesor_kadin),
+            ("Doçent",               b => b.docent_erkek,               b => b.docent_kadin),
+            ("Doktor öğretim üyesi", b => b.doktor_ogretim_uyesi_erkek, b => b.doktor_ogretim_uyesi_kadin),
+            ("Öğretim görevlisi",    b => b.ogretim_gorevlisi_erkek,    b => b.ogretim_gorevlisi_kadin),
+            ("Araştırma görevlisi",  b => b.arastirma_gorevlisi_erkek,  b => b.arastirma_gorevlisi_kadin),
+        };
+
+        private static readonly Dictionary<string, string> TurRenkleri = new()
+        {
+            ["DEVLET"]    = "var(--seri-1)",
+            ["VAKIF"]     = "var(--seri-2)",
+            ["VAKIF MYO"] = "var(--seri-3)",
+        };
+
+        /// <summary>Ana sayfa özeti: kurum sayıları, cinsiyet ve unvan dağılımları.</summary>
+        public GenelBakisViewModel GenelBakis(string yil)
+        {
+            yil = YilDogrula(yil);
+            var hepsi = Listele(yil);
+
+            var model = new GenelBakisViewModel
+            {
+                Yil = yil,
+                YilGoster = YilGoster(yil),
+                ToplamKurum = hepsi.Count,
+                // Üniversite satırındaki resmî toplamlar kullanılıyor.
+                ToplamErkek = hepsi.Sum(u => u.toplam_erkek ?? 0),
+                ToplamKadin = hepsi.Sum(u => u.toplam_kadin ?? 0),
+                ToplamOgretimElemani = hepsi.Sum(u => u.toplam_toplam ?? 0),
+            };
+
+            model.Turler = hepsi
+                .GroupBy(u => u.tur ?? "")
+                .Select(g => new TurDagilimi
+                {
+                    Ad = TurGoster(g.Key),
+                    KurumSayisi = g.Count(),
+                    KisiSayisi = g.Sum(u => u.toplam_toplam ?? 0),
+                    Renk = TurRenkleri.TryGetValue(g.Key, out var r) ? r : "var(--metin-soluk)",
+                })
+                .OrderByDescending(t => t.KisiSayisi)
+                .ToList();
+
+            foreach (var t in model.Turler)
+                t.Oran = model.ToplamOgretimElemani > 0
+                    ? (double)t.KisiSayisi / model.ToplamOgretimElemani * 100 : 0;
+
+            // Unvan kırılımı birim satırlarından geliyor; unvan bazında resmî
+            // toplam yok, yalnızca kurum geneli var.
+            var birimler = hepsi.SelectMany(u => u.birimler ?? new List<Birim>()).ToList();
+            model.Unvanlar = Unvanlar
+                .Select(u => new UnvanDagilimi
+                {
+                    Ad = u.Ad,
+                    Erkek = birimler.Sum(b => u.Erkek(b) ?? 0),
+                    Kadin = birimler.Sum(b => u.Kadin(b) ?? 0),
+                })
+                .OrderByDescending(u => u.Toplam)
+                .ToList();
+
+            return model;
         }
 
         /// <summary>O yıl için veri yüklü mü? Boş koleksiyonda anlamsız sayfa göstermemek için.</summary>

@@ -89,20 +89,29 @@ namespace YokIstatistikWeb.Controllers
         }
 
         [Route("Karsilastir")]
-        public IActionResult Karsilastir(string id1, string id2, string? year)
+        public IActionResult Karsilastir(string? id1, string? id2, string? year)
         {
             var yil = IstatistikServisi.YilDogrula(year);
             OrtakVeriyiDoldur(yil);
 
             try
             {
+                // Seçim listesi her durumda gerekiyor: kullanıcı sayfaya doğrudan
+                // gelmiş olabilir ya da seçimini değiştirmek isteyebilir.
+                ViewBag.Secenekler = _servis.Listele(yil);
+                ViewBag.Id1 = id1;
+                ViewBag.Id2 = id2;
+
+                if (string.IsNullOrWhiteSpace(id1) || string.IsNullOrWhiteSpace(id2))
+                    return View((Tuple<Universite, Universite>?)null);
+
                 var u1 = _servis.Getir(yil, id1);
                 var u2 = _servis.Getir(yil, id2);
 
                 if (u1 is null || u2 is null)
                 {
-                    _logger.LogWarning("Karşılaştırma için kayıt eksik: {Id1} / {Id2}", id1, id2);
-                    return NotFound();
+                    TempData["Error"] = "Seçilen üniversitelerden biri bulunamadı.";
+                    return View((Tuple<Universite, Universite>?)null);
                 }
 
                 return View(Tuple.Create(u1, u2));
