@@ -131,8 +131,56 @@ class TabloPlani:
     # Birim adının ayrı bir kolonda olduğu tablolar (M005) için
     birim_adi_kolonu: int | None = None
 
+    # Üniversite satırını neyin belirlediği. YÖK iki farklı yazım kullanıyor:
+    #   "tur"  -> birim satırlarında tür hücresi boş (2018-2019 sonrası T28)
+    #   "ilce" -> tür her satırda dolu, üniversiteyi ilçenin BOŞ olması ayırıyor
+    # Dosyadan otomatik belirleniyor; sabit yazmak yıllar arasında kırılıyor.
+    universite_belirteci: str = "tur"
+
+    # Her ölçüm grubunun başlığında geçmesi GEREKEN anahtar kelime.
+    # Aritmetik doğrulama kolon kaymasını yakalar ama tablonun ANLAMI
+    # değiştiğinde sessiz kalır: 2018 unvan reformundan önceki dosyalarda
+    # 8 unvan grubu var (Yardımcı Doçent, Okutman, Uzman, Çevirici) ve
+    # altıncı grup "Toplam" değil "Uzman". Başlık kontrolü bunu yakalıyor.
+    baslik_anahtarlari: list[str] = field(default_factory=list)
+
 
 ADSIZ_KURUM = "(KURUM ADI BELİRTİLMEMİŞ)"
+
+
+class TabloDuzeniDegisti(Exception):
+    """Dosyanın anlamı beklenenden farklı: kolonlar aynı yerde ama başka şeyi sayıyor."""
+
+
+def _basliklari_dogrula(sayfa, ekt_satiri: int, ilk_kolon: int, plan: TabloPlani) -> None:
+    """Ölçüm gruplarının başlıklarının beklenenle uyuştuğunu kontrol eder.
+
+    Aritmetik doğrulama tek başına yetmiyor: yanlış kolon okunduğunda dosyanın
+    kendi toplam satırı da aynı yanlış kolondan geldiği için sapma çıkmıyor.
+    2016-2017 T28'de altıncı grup "Toplam" değil "Uzman"; kontrol olmadan
+    veritabanına 'toplam_toplam = 47' gibi anlamsız değerler yazılıyordu.
+    """
+    if not plan.baslik_anahtarlari:
+        return
+
+    # Grup başlıkları E/K/T satırının hemen üstünde, birleşik hücrede duruyor.
+    ustsatir = ekt_satiri - 1
+    if ustsatir < 0:
+        return
+
+    basliklar = [(_temiz(sayfa.cell_value(ustsatir, c)).upper(), c)
+                 for c in range(ilk_kolon, sayfa.ncols)
+                 if _temiz(sayfa.cell_value(ustsatir, c))]
+
+    for sira, anahtar in enumerate(plan.baslik_anahtarlari):
+        if sira >= len(basliklar):
+            raise TabloDuzeniDegisti(
+                f"{sira + 1}. ölçüm grubu yok (beklenen: {anahtar})")
+        bulunan = basliklar[sira][0]
+        if anahtar.upper() not in bulunan:
+            raise TabloDuzeniDegisti(
+                f"{sira + 1}. grup '{bulunan[:34]}' — beklenen '{anahtar}'. "
+                f"Bu dosyanın tablo düzeni farklı, ayrıştırıcı uymuyor.")
 
 
 def duzeni_coz(sayfa, plan: TabloPlani) -> TabloPlani:
@@ -158,15 +206,71 @@ def duzeni_coz(sayfa, plan: TabloPlani) -> TabloPlani:
     if ekt_satiri is None:      # başlık bulunamadı: plan olduğu gibi kullanılır
         return plan
 
+    _basliklari_dogrula(sayfa, ekt_satiri, ilk_sayi_kolonu, plan)
+
+    # Ölçüm grupları arasında boş kolon olabiliyor (2017-2018 T12: 11 kolon,
+    # ikinci grup 7'de değil 8'de başlıyor). Sabit ofset yerine satırdaki
+    # bütün E/K/T üçlüleri bulunup ölçümlerle sırayla eşleniyor.
+    ucluler = []
+    c = ilk_sayi_kolonu
+    while c + 2 < sayfa.ncols:
+        if (_temiz(sayfa.cell_value(ekt_satiri, c)) == "E"
+                and _temiz(sayfa.cell_value(ekt_satiri, c + 1)) == "K"
+                and _temiz(sayfa.cell_value(ekt_satiri, c + 2)).startswith("T")):
+            ucluler.append(c)
+            c += 3
+        else:
+            c += 1
+
     kayma = ilk_sayi_kolonu - plan.olcumler[0].kolon
+
+    # İlçe kolonu başlıktan bulunuyor (E/K/T satırında ya da bir üstünde).
+    # Bazı dosyalarda kolon var ama başlığı boş (2017-2018 T35); o durumda
+    # ilk sayı kolonundan hemen önceki kolon ayırt edici oluyor.
+    ilce_kolonu = plan.ilce_kolonu + kayma if plan.ilce_kolonu is not None else None
+    for r in (ekt_satiri, ekt_satiri - 1):
+        if r < 0:
+            continue
+        for c in range(ilk_sayi_kolonu):
+            if "İLÇE" in _temiz(sayfa.cell_value(r, c)).upper():
+                ilce_kolonu = c
+                break
+    if ilce_kolonu is None and ilk_sayi_kolonu >= 1:
+        ilce_kolonu = ilk_sayi_kolonu - 1
+
+    # Hangi yazım kullanılıyor? Veri satırlarının çoğunda tür doluysa,
+    # tür kolonu üniversiteyi ayırt etmiyor demektir.
+    ilk_veri = ekt_satiri + 2
+    ornek = range(ilk_veri, min(ilk_veri + 40, sayfa.nrows))
+    dolu = sum(1 for r in ornek
+               if _temiz(sayfa.cell_value(r, plan.tur_kolonu)))
+    toplam_ornek = max(len(list(ornek)), 1)
+    # Aday kolon gerçekten ayırt edici mi: hem boş hem dolu değerler taşımalı.
+    # Yoksa (ör. şehir kolonu) her satırı üniversite sanardık.
+    ayirt_edici = False
+    if ilce_kolonu is not None:
+        degerler = [bool(_temiz(sayfa.cell_value(r, ilce_kolonu))) for r in ornek]
+        ayirt_edici = any(degerler) and not all(degerler)
+
+    belirtec = "ilce" if (dolu / toplam_ornek > 0.6 and ayirt_edici) else "tur"
+
+    # Üçlü sayısı yetiyorsa doğrudan onlarla eşle; yetmiyorsa eski kaydırma
+    # davranışına düş (ör. başlık satırı beklenenden farklıysa).
+    if len(ucluler) >= len(plan.olcumler):
+        olcumler = [Olcum(o.onek, ucluler[i]) for i, o in enumerate(plan.olcumler)]
+    else:
+        olcumler = [Olcum(o.onek, o.kolon + kayma) for o in plan.olcumler]
+
     return TabloPlani(
+        universite_belirteci=belirtec,
+        baslik_anahtarlari=plan.baslik_anahtarlari,
         ad_kolonu=plan.ad_kolonu,
         tur_kolonu=plan.tur_kolonu,
         sehir_kolonu=plan.sehir_kolonu,
-        olcumler=[Olcum(o.onek, o.kolon + kayma) for o in plan.olcumler],
+        olcumler=olcumler,
         ilk_veri_satiri=ekt_satiri + 2,
         ulke_toplami_satiri=ekt_satiri + 1,
-        ilce_kolonu=None if plan.ilce_kolonu is None else plan.ilce_kolonu + kayma,
+        ilce_kolonu=ilce_kolonu,
         birim_adi_kolonu=None if plan.birim_adi_kolonu is None else plan.birim_adi_kolonu + kayma,
     )
 
@@ -207,7 +311,14 @@ def universite_bloklari(yol: Path, donem: str, plan: TabloPlani) -> list[dict]:
         sayilar = _olcumleri_oku(sayfa, satir, plan)
         dolu = any(v for v in sayilar.values())
 
-        if tur:  # üniversite satırı
+        if plan.universite_belirteci == "ilce":
+            # Tür her satırda dolu; üniversiteyi ilçenin boş olması ayırıyor.
+            ilce = _temiz(sayfa.cell_value(satir, plan.ilce_kolonu)) if plan.ilce_kolonu is not None else ""
+            universite_satiri = bool(tur) and not ilce
+        else:
+            universite_satiri = bool(tur)
+
+        if universite_satiri:
             if ad_tr.startswith(TOPLAM_IZI):     # ülke geneli satırı
                 continue
             if not ad_tr:
@@ -264,7 +375,10 @@ def universite_bloklari(yol: Path, donem: str, plan: TabloPlani) -> list[dict]:
 # ---------------------------------------------------------------- tablo planları
 
 # T028 / T035: 6 unvan x (E, K, T), kolon 3'ten başlıyor
-UNVAN_PLANI = TabloPlani(olcumler=[
+UNVAN_PLANI = TabloPlani(
+    baslik_anahtarlari=["PROFESÖR", "DOÇENT", "DOKTOR", "ÖĞRETİM GÖREVLİSİ",
+                        "ARAŞTIRMA", "TOPLAM"],
+    olcumler=[
     Olcum("profesor", 3),
     Olcum("docent", 6),
     Olcum("doktor_ogretim_uyesi", 9),
@@ -275,6 +389,7 @@ UNVAN_PLANI = TabloPlani(olcumler=[
 
 # T012: ilçe kolon 3'te, yeni kayıt 4'ten, toplam öğrenci 7'den
 OGRENCI_PLANI = TabloPlani(
+    baslik_anahtarlari=["YENİ KAYIT", "TOPLAM"],
     ilce_kolonu=3,
     olcumler=[Olcum("yeni_kayit", 4), Olcum("toplam", 7)],
 )
@@ -282,6 +397,7 @@ OGRENCI_PLANI = TabloPlani(
 # M005: birim TÜRÜ kolon 3'te, tek ölçüm kolon 4'ten.
 # Ülke geneli bloğu r2-r5 arasında, üniversiteler r6'dan başlıyor.
 MEZUN_PLANI = TabloPlani(
+    baslik_anahtarlari=[],   # M005'te grup başlığı yok, tek ölçüm
     birim_adi_kolonu=3,
     olcumler=[Olcum("toplam", 4)],
     ilk_veri_satiri=2,
@@ -324,8 +440,11 @@ def ayristir_birim_sayilari(yol: Path, donem: str) -> list[dict]:
 
         kayit = {"birim_turu": ad_tr, "birim_turu_en": ad_en, "yil": donem}
         for onek, kolon in turler:
-            kayit[f"{onek}_aktif"] = _sayi(sayfa.cell_value(satir, kolon))
-            kayit[f"{onek}_pasif"] = _sayi(sayfa.cell_value(satir, kolon + 1))
+            # Eski yılların dosyalarında kolon sayısı daha az olabiliyor.
+            kayit[f"{onek}_aktif"] = (
+                _sayi(sayfa.cell_value(satir, kolon)) if kolon < sayfa.ncols else None)
+            kayit[f"{onek}_pasif"] = (
+                _sayi(sayfa.cell_value(satir, kolon + 1)) if kolon + 1 < sayfa.ncols else None)
         kayitlar.append(kayit)
 
     return kayitlar
@@ -365,8 +484,11 @@ def dogrula(yol: Path, kayitlar: list[dict], plan: TabloPlani) -> bool:
         # Kolon kayması ya da yanlış satır okuma büyük sapma üretir; kaynak
         # dosyanın kendi aritmetik tutarsızlığı ise birkaç kişilik olur.
         # İkisini ayırmak, gerçek bir ayrıştırma hatasını gürültüde kaybetmemek için.
+        # Küçük mutlak sapmalar kaynak gürültüsü; oransal eşik tek başına
+        # küçük toplamlarda (ör. 3.121 kişilik yabancı uyruklu tablosu)
+        # birkaç kişiyi ayrıştırma hatası gibi gösteriyordu.
         oran = abs(fark) / beklenen if beklenen else 1.0
-        if oran < 0.0001:
+        if abs(fark) <= 10 or oran < 0.001:
             print(f"    · kaynak toplamı tutmuyor {alan}: dosya={beklenen} "
                   f"parçaların toplamı={hesaplanan} ({fark:+d})")
         else:
@@ -414,6 +536,7 @@ def tumunu_ayristir() -> None:
 
     manifest = json.loads(manifest_yolu.read_text(encoding="utf-8"))
     islenen = 0
+    basarisiz: list[tuple[str, str, str]] = []
 
     for kayit in manifest:
         tablo_kodu = config.normalize_tablo_kodu(kayit["tablo_kodu"])
@@ -428,7 +551,14 @@ def tumunu_ayristir() -> None:
 
         ayristirici, _ = AYRISTIRICILAR[tablo_kodu]
         _TEKRARLAR.clear()
-        kayitlar = ayristirici(kaynak, donem)
+        try:
+            kayitlar = ayristirici(kaynak, donem)
+        except Exception as hata:                      # noqa: BLE001
+            # Tek bir bozuk dosya on üç yıllık işi durdurmamalı; hangi dosyada
+            # ne olduğu raporlanıp devam ediliyor.
+            basarisiz.append((donem, tablo_kodu, f"{type(hata).__name__}: {hata}"))
+            print(f"    ! {kaynak.name} ayrıştırılamadı ({type(hata).__name__}: {hata})")
+            continue
 
         if (plan := PLANLAR.get(tablo_kodu)) is not None and not dogrula(kaynak, kayitlar, plan):
             print(f"    ! {kaynak.name} doğrulamayı geçemedi, yine de yazılıyor")
@@ -440,3 +570,7 @@ def tumunu_ayristir() -> None:
         islenen += 1
 
     print(f"\n{islenen} tablo işlendi -> {config.PROCESSED_DIR}")
+    if basarisiz:
+        print(f"\n{len(basarisiz)} tablo ayrıştırılamadı:")
+        for donem, kod, sebep in basarisiz:
+            print(f"  {donem} {kod}: {sebep}")

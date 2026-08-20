@@ -145,6 +145,43 @@ karşılaştırılıyor. Sapma iki şekilde raporlanıyor:
 İkisini ayırmak, gerçek bir ayrıştırma hatasının kaynak gürültüsünde
 kaybolmaması için.
 
+### Kapsam sınırı: 2018 unvan reformu
+
+Ayrıştırıcılar **2017-2018 ve sonrası** için çalışıyor. Öncesinde YÖK farklı bir
+akademik unvan taksonomisi kullanıyordu:
+
+| 2017-2018 öncesi | Sonrası |
+|---|---|
+| Yardımcı Doçent | Doktor Öğretim Üyesi |
+| Okutman, Uzman, Çevirici, Eğitim-Öğretim Planlamacısı | Öğretim Görevlisi |
+
+Eski dosyalarda 8 unvan grubu var, yenilerde 6. Kolonlar aynı yerde durduğu için
+aritmetik doğrulama bunu **yakalayamıyor**: yanlış kolon okunduğunda dosyanın
+kendi toplam satırı da aynı yanlış kolondan geliyor ve sapma çıkmıyor. Nitekim
+2016-2017 dosyası bu şekilde doğrulamayı geçip veritabanına
+`toplam_toplam = 47` gibi anlamsız değerler yazıyordu (gerçek toplam 834).
+
+Bu yüzden `TabloPlani.baslik_anahtarlari` ile **anlamsal başlık kontrolü** var:
+her ölçüm grubunun başlığında beklenen kelime aranıyor, uymuyorsa dosya
+`TabloDuzeniDegisti` ile reddediliyor. Eski yılları kapsama almak istenirse
+taksonomi eşlemesi bilinçli bir karar olarak eklenmeli.
+
+### Yıllar arası düzen farkları
+
+Aynı tablo yıldan yıla farklı yazılabiliyor; ayrıştırıcı hepsini dosyadan
+otomatik çözüyor:
+
+- **Kolon kayması** — 2021-2022 `T35`'te fazladan ilçe kolonu, başlıklar bir
+  satır aşağıda.
+- **Ölçüm grupları arası boşluk** — 2017-2018 `T12`'de iki grup arasında boş
+  kolon var; sabit ofset yanlış kolonu okuyordu.
+- **Üniversite satırının belirteci** — bazı dosyalarda birim satırlarında tür
+  hücresi boş, bazılarında her satırda dolu ve üniversiteyi *ilçenin* boş
+  olması ayırıyor. Örneklemeyle tespit ediliyor.
+- **Dosya adları** — erken yıllarda `2014_28_Son.xls`, `2015_T28_v3.xls`,
+  `2016_T107v2.xls` gibi; hatta bir `.xlsx`. 2013-2014 ve 2014-2015 bu yüzden
+  büyük ölçüde kapsam dışı.
+
 ### Bilinen kaynak veri sorunu
 
 YÖK dosyalarında birebir tekrar eden birim satırları var (2025-2026'da 1 adet:
@@ -162,9 +199,18 @@ boş ama sayılar gerçek (2024-2025'te 2 satır, 18 kişi). Bu satırlar atılm
 kurumlar var (2025-2026'da 8 adet). Sayıları gerçek; `(KURUM ADI BELİRTİLMEMİŞ) N`
 etiketiyle korunuyorlar.
 
-**Ulusal toplamın tutmadığı yıl.** 2024-2025 `M005` dosyasında YÖK'ün kendi
-ulusal toplamı, parçalarının toplamından 3 kişi eksik. Her üniversite bloğu
-kendi içinde tutarlı; tutarsızlık kaynağın kendisinde.
+**Ulusal toplamın tutmadığı dosyalar.** Bazı dosyalarda YÖK'ün kendi ulusal
+toplamı, parçalarının toplamına eşit değil:
+
+| Dosya | Sapma |
+|---|---|
+| 2024-2025 `M005` | +3 kişi |
+| 2017-2018 `T035` | +2 kişi |
+| 2017-2018 `T012` | +18.855 öğrenci (%0,27) |
+
+Her üniversite bloğu kendi içinde tutarlı; tutarsızlık kaynağın kendisinde.
+Küçük sapmalar not olarak geçiliyor, `T012`'ninki eşiği aştığı için
+doğrulama hatası olarak işaretleniyor — insan gözüyle bakılmasını hak ediyor.
 
 **Şehri boş kurum.** `İZMİR KONAK MESLEK YÜKSEKOKULU` (2025-2026, 116 kişi)
 kaynakta şehirsiz geliyor. Ad içinde il adı geçse de tahmin yürütülmüyor;
