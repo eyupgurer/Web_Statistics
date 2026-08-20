@@ -1,17 +1,30 @@
+@using YokIstatistikWeb.Services
+@{
+    // Aktif yıl sayfadan geliyorsa onu, yoksa varsayılanı göster.
+    var aktifYil = ViewBag.Yil as string ?? IstatistikServisi.VarsayilanYil;
+    var aktifBolum = ViewContext.RouteData.Values["controller"] as string;
+    var aktifAksiyon = ViewContext.RouteData.Values["action"] as string;
+
+    string Etkin(bool kosul) => kosul ? "nav-link active" : "nav-link";
+}
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - YÖK İstatistikleri</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/YokIstatistikWeb.styles.css" asp-append-version="true" />
-    <!-- Font Awesome için -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-<!-- NAVBAR -->
+
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
         <a class="navbar-brand" href="/">
@@ -23,64 +36,64 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
+            <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="/">
-                        <i class="fas fa-home me-1"></i>Ana Sayfa
-                    </a>
+                    <a class="@Etkin(aktifBolum == "Home")" href="/">Genel Bakış</a>
                 </li>
+                <li class="nav-item">
+                    <a class="@Etkin(aktifBolum == "Yuksekogretim" && aktifAksiyon != "Karsilastir")"
+                       asp-controller="Yuksekogretim" asp-action="Index" asp-route-year="@aktifYil">Üniversiteler</a>
+                </li>
+                <li class="nav-item">
+                    <a class="@Etkin(aktifAksiyon == "Karsilastir")"
+                       asp-controller="Yuksekogretim" asp-action="Karsilastir" asp-route-year="@aktifYil">Karşılaştır</a>
+                </li>
+                <li class="nav-item">
+                    <a class="@Etkin(aktifBolum == "Sehir")"
+                       asp-controller="Sehir" asp-action="Grafik" asp-route-year="@aktifYil">Harita</a>
+                </li>
+            </ul>
+
+            @* Öğretim yılı seçici. Liste tek kaynaktan geliyor: IstatistikServisi.Yillar *@
+            <ul class="navbar-nav">
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-university me-1"></i>Yükseköğretim İstatistikleri
+                    <a class="nav-link dropdown-toggle" href="#" id="yilMenusu" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="d-none d-lg-inline" style="opacity:.65;">Öğretim yılı</span>
+                        <span class="num ms-1 fw-semibold">@IstatistikServisi.YilGoster(aktifYil)</span>
                     </a>
-                    @* Yıl listesi tek kaynaktan geliyor: IstatistikServisi.Yillar.
-                       Önceden burada elle yazılıydı ve 2025-2026 hiç görünmüyordu. *@
-                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        @foreach (var yil in YokIstatistikWeb.Services.IstatistikServisi.Yillar)
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="yilMenusu">
+                        @foreach (var yil in IstatistikServisi.Yillar)
                         {
                             <li>
-                                <a class="dropdown-item" asp-controller="Yuksekogretim"
-                                   asp-action="YilMenu" asp-route-year="@yil">
-                                    @YokIstatistikWeb.Services.IstatistikServisi.YilGoster(yil)
+                                <a class="dropdown-item @(yil == aktifYil ? "fw-semibold" : "")"
+                                   asp-controller="Yuksekogretim" asp-action="YilMenu" asp-route-year="@yil">
+                                    @IstatistikServisi.YilGoster(yil)
                                 </a>
                             </li>
                         }
                     </ul>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-controller="Sehir" asp-action="Grafik">
-                        <i class="fas fa-chart-area me-1"></i>Şehir Bazlı Grafik
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fas fa-chalkboard-teacher me-1"></i>Öğretim Elemanı İstatistikleri
-                    </a>
                 </li>
             </ul>
         </div>
     </div>
 </nav>
 
-<!-- ANA İÇERİK -->
 <main class="main-content">
-    <div class="container-fluid">
-        @RenderBody()
-    </div>
+    @RenderBody()
 </main>
 
-<!-- FOOTER - Sadece alt bilgi -->
-<footer class="bg-dark text-center text-light mt-5 py-3 border-top">
-    <div class="container">
-        <p class="mb-0">&copy; @DateTime.Now.Year YÖK İstatistikleri •
-            <a href="#" class="text-info">Kullanım Koşulları</a> |
-            <a href="#" class="text-info">Gizlilik Politikası</a> |
-            <a href="#" class="text-info">Veri Kaynakları</a>
-        </p>
+<footer>
+    <div class="container d-flex flex-wrap justify-content-between gap-2">
+        <span>&copy; @DateTime.Now.Year YÖK İstatistikleri</span>
+        <span>
+            Veri kaynağı:
+            <a href="https://istatistik.yok.gov.tr" target="_blank" rel="noopener">YÖK Yükseköğretim İstatistikleri</a>
+            · Resmî İstatistik Programı kapsamında yayımlanmaktadır
+        </span>
     </div>
 </footer>
 
-<!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
