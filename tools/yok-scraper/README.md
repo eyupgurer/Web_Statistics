@@ -86,9 +86,12 @@ değişti" sanıp her çalıştığında boş bir pull request açardı. `mtime=
 
 ## Kapsam
 
-Portalda **13 öğretim yılı** (2013-2014 → 2025-2026) ve yıl başına **38 Excel
-tablosu** var. `config.YEARS` şu an 5 yılla sınırlı; genişletmek için
-`config.ALL_YEARS` listesinden doldurulabilir.
+Portalda **13 öğretim yılı** (2013-2014 → 2025-2026) ve yıl başına ~40 Excel
+tablosu var; `config.YEARS` bunların tamamını kapsıyor. Yeni bir yıl
+yayımlandığında `years` komutu haber veriyor.
+
+Uygulamanın gösterdiği yıl listesi elle tutulmuyor: MongoDB'deki koleksiyon
+adlarından okunuyor, yani `seed` çalıştığında menüde kendiliğinden beliriyor.
 
 | Sekme | Tablo sayısı |
 |---|---|

@@ -12,6 +12,7 @@ Veriler [YÖK Yükseköğretim Bilgi Yönetim Sistemi](https://istatistik.yok.go
 - **Üniversite detayı** — akademik unvan ve cinsiyet kırılımında öğretim elemanı sayıları
 - **Karşılaştırma** — iki üniversiteyi yan yana grafiklerle kıyaslama
 - **Şehir bazlı harita** — Türkiye haritası üzerinde öğretim elemanı dağılımı
+- **Eğilim** — yıllar arası seyir: öğretim elemanı, kadın oranı, öğrenci ve mezun sayıları
 - **Çok yıllı veri** — 2021-2022'den 2025-2026'ya
 
 ## Mimari
