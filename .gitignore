@@ -1,24 +1,28 @@
-# macOS
+# ---- macOS ----
 .DS_Store
-<<<<<<< HEAD
-.vs/
-=======
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
-Thumbs.db
 
-# Visual Studio / Rider
+# ---- Windows ----
+Thumbs.db
+ehthumbs.db
+
+# ---- IDE ----
 .vs/
+.claude/
 .idea/
+.vscode/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
+*~
 
-# Build results
+# ---- Build çıktıları ----
+[Bb]in/
+[Oo]bj/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -27,43 +31,49 @@ x64/
 x86/
 build/
 bld/
-[Bb]in/
-[Oo]bj/
 
-# MSTest test Results
+# ---- Test sonuçları ----
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
-# NuGet Packages
+# ---- NuGet ----
 *.nupkg
 **/packages/*
 !**/packages/build/
-
-# Visual Studio cache files
 *.cache
-*.vsdx
 
-# Web publish profiles
+# ---- Yayınlama ----
 **/PublishProfiles/
+publish/
 
-# Node.js (eğer JavaScript kullanıyorsanız)
+# ---- Node.js (frontend araçları için) ----
 node_modules/
 npm-debug.log*
+yarn-error.log
 
-# Logs
-logs
+# ---- Python (veri pipeline için) ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+
+# ---- Loglar / geçici dosyalar ----
+logs/
 *.log
-
-# Runtime data
+*.tmp
+*.temp
 pids
 *.pid
 *.seed
 
-# Temporary files
-*.tmp
-*.temp
+# ---- Gizli yapılandırma ----
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
 
-# IDE
-*~
-.vscode/
->>>>>>> 384edb859d336f92ade53880a893edb7945e39da
+# ---- Veri pipeline ham çıktıları (büyük dosyalar) ----
+data/raw/
+data/tmp/
+*.xlsx.download
