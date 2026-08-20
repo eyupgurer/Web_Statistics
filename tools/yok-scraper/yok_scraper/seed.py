@@ -22,11 +22,18 @@ from . import config
 VARSAYILAN_URI = "mongodb://localhost:27017"
 VARSAYILAN_DB = "YokIstatistikDB"
 
-# Tablo kodu -> koleksiyon adı önekі.
-# T028 mevcut uygulamanın kullandığı tablo; diğerleri ölü menü kartlarını dolduracak.
+# Tablo kodu -> koleksiyon adı öneki.
+# T028'in adı mevcut uygulamayla uyumlu kalsın diye korunuyor.
 KOLEKSIYON_ONEKI = {
     "T028": "YOI_ogretim_elemani_akademik_gorev_sayilari",
+    "T035": "YOI_yabanci_uyruklu_ogretim_elemani",
+    "T012": "YOI_ogrenci_sayilari",
+    "M005": "YOI_mezun_sayilari",
+    "T107": "YOI_akademik_birim_sayilari",
 }
+
+# Uygulamanın filtrelediği alanlar. T107'de üniversite kırılımı yok.
+INDEKSLER = ("sehir", "tur", "universite")
 
 
 def koleksiyon_adi(tablo_kodu: str, donem: str) -> str:
@@ -61,10 +68,11 @@ def yukle(
     koleksiyon.delete_many({})
     koleksiyon.insert_many(kayitlar)
 
-    # Uygulamanın filtrelediği alanlar (şehir, tür, üniversite adı) indekslensin.
-    koleksiyon.create_index("sehir")
-    koleksiyon.create_index("tur")
-    koleksiyon.create_index("universite")
+    # Yalnızca kayıtlarda gerçekten bulunan alanlar indekslensin.
+    ornek = kayitlar[0]
+    for alan in INDEKSLER:
+        if alan in ornek:
+            koleksiyon.create_index(alan)
 
     istemci.close()
     print(f"  {koleksiyon.name}: {len(kayitlar)} belge")

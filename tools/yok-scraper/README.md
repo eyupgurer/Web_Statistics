@@ -91,18 +91,45 @@ tablosu** var. `config.YEARS` şu an 5 yılla sınırlı; genişletmek için
 Her tablonun kendi sayfa düzeni var, bu yüzden ayrıştırıcılar tablo kodu bazında
 yazılıyor (`parse.AYRISTIRICILAR`).
 
-| Kod | Tablo | Durum |
+| Kod | Tablo | Koleksiyon |
 |---|---|---|
-| `T028` | Öğretim elemanlarının akademik görevlerine göre sayıları | ✅ hazır |
+| `T028` | Öğretim elemanlarının akademik görevlerine göre sayıları | `YOI_ogretim_elemani_akademik_gorev_sayilari` |
+| `T035` | Yabancı uyruklu öğretim elemanları | `YOI_yabanci_uyruklu_ogretim_elemani` |
+| `T012` | Önlisans ve lisans düzeyinde öğrenci sayıları | `YOI_ogrenci_sayilari` |
+| `M005` | Mezun sayıları | `YOI_mezun_sayilari` |
+| `T107` | Türlerine göre akademik birim sayıları | `YOI_akademik_birim_sayilari` |
 
-Yeni bir tablo eklemek için: `inspect` ile düzeni gör → `ayristir_TNNN()` yaz →
-`AYRISTIRICILAR` sözlüğüne ekle.
+Portalda yıl başına ~42 tablo var; yukarıdakiler menüdeki dört veri grubunu
+karşılayanlar. Yeni bir tablo eklemek için: `inspect` ile düzeni gör →
+plan tanımla → `AYRISTIRICILAR` sözlüğüne ekle.
+
+### Ortak yürüyüş
+
+`T028`, `T035`, `T012` ve `M005` aynı "üniversite + birim" düzenini paylaşıyor:
+tür kolonu dolu olan satır yeni bir kurum başlatır, boş olanlar ona ait birimdir.
+Değişen tek şey kolon yerleşimi, o da `TabloPlani` ile tanımlanıyor. `T107`
+üniversite kırılımı taşımadığı için ayrı bir ayrıştırıcı kullanıyor.
+
+### Otomatik düzen çözümleme
+
+Kolon indeksleri sabit yazılmıyor. Ayrıştırıcı önce `E | K | T` başlık satırını
+bulup plandaki indeksleri gerçek dosyaya göre kaydırıyor. Buna ihtiyaç var:
+2021-2022'nin `T35` dosyasında fazladan bir ilçe kolonu var ve başlıklar bir
+satır aşağıda — aynı tablonun diğer yıllarındaki düzenden farklı. Sabit indeksle
+okunsaydı sessizce yanlış kolonlar alınırdı.
 
 ### Doğrulama
 
-`T028` ayrıştırıcısı sonucu dosyanın **kendi "TOPLAM / TOTAL" satırıyla**
-karşılaştırıyor. Kaynak dosyanın düzeni değişir de kolonlar kayarsa, sessizce
-yanlış veri üretmek yerine hata veriyor.
+Her ayrıştırma sonucu dosyanın **kendi "TOPLAM / TOTAL" satırıyla**
+karşılaştırılıyor. Sapma iki şekilde raporlanıyor:
+
+- **`! DOĞRULAMA HATASI`** — sapma %0,01'den büyük. Kolon kayması ya da yanlış
+  satır okuma anlamına gelir, ayrıştırıcı bozulmuştur.
+- **`· kaynak toplamı tutmuyor`** — sapma birkaç kişilik. Kaynak dosyanın kendi
+  aritmetiği tutmuyor demektir; ayrıştırıcı sadıktır.
+
+İkisini ayırmak, gerçek bir ayrıştırma hatasının kaynak gürültüsünde
+kaybolmaması için.
 
 ### Bilinen kaynak veri sorunu
 
@@ -116,6 +143,14 @@ meşru kabul edilip korunuyor.
 **Adı boş birim satırları.** Bazı üniversitelerin son birim satırında ad hücresi
 boş ama sayılar gerçek (2024-2025'te 2 satır, 18 kişi). Bu satırlar atılmıyor,
 `(BİRİM ADI BELİRTİLMEMİŞ)` etiketiyle korunuyor.
+
+**Adı boş kurumlar.** `M005`'te alfabetik listenin sonunda adı yazılmamış
+kurumlar var (2025-2026'da 8 adet). Sayıları gerçek; `(KURUM ADI BELİRTİLMEMİŞ) N`
+etiketiyle korunuyorlar.
+
+**Ulusal toplamın tutmadığı yıl.** 2024-2025 `M005` dosyasında YÖK'ün kendi
+ulusal toplamı, parçalarının toplamından 3 kişi eksik. Her üniversite bloğu
+kendi içinde tutarlı; tutarsızlık kaynağın kendisinde.
 
 **Şehri boş kurum.** `İZMİR KONAK MESLEK YÜKSEKOKULU` (2025-2026, 116 kişi)
 kaynakta şehirsiz geliyor. Ad içinde il adı geçse de tahmin yürütülmüyor;
