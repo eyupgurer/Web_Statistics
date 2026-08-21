@@ -120,20 +120,32 @@ yazılıyor (`parse.AYRISTIRICILAR`).
 |---|---|---|
 | `T028` | Öğretim elemanlarının akademik görevlerine göre sayıları | `YOI_ogretim_elemani_akademik_gorev_sayilari` |
 | `T035` | Yabancı uyruklu öğretim elemanları | `YOI_yabanci_uyruklu_ogretim_elemani` |
+| `T201` | Yabancı uyruklu öğretim elemanları — uyruğa göre | `YOI_yabanci_uyruklu_ulke` |
 | `T012` | Önlisans ve lisans düzeyinde öğrenci sayıları | `YOI_ogrenci_sayilari` |
+| `T022` | Lisansüstü öğrenci sayıları | `YOI_lisansustu_ogrenci` |
 | `M005` | Mezun sayıları | `YOI_mezun_sayilari` |
 | `T107` | Türlerine göre akademik birim sayıları | `YOI_akademik_birim_sayilari` |
+| `T003` | Birim türüne göre öğrenci ve öğretim elemanı | `YOI_birim_turu_ozet` |
+| `T017` | Lisans öğrenci — eğitim alanına göre | `YOI_egitim_alani_lisans` |
+| `T019` | Önlisans öğrenci — eğitim alanına göre | `YOI_egitim_alani_onlisans` |
+| `T007` | Öğrenci — yaş, öğrenim düzeyi ve öğretim türü | `YOI_yas_ogretim_turu` |
+| `T102` | Öğrenci — il/ilçe ve öğretim türü | `YOI_ogrenci_il_ilce` |
+| `T105` | Program düzeyinde öğrenci sayıları | `YOI_program_ogrenci` |
 
-Portalda yıl başına ~42 tablo var; yukarıdakiler menüdeki dört veri grubunu
-karşılayanlar. Yeni bir tablo eklemek için: `inspect` ile düzeni gör →
-plan tanımla → `AYRISTIRICILAR` sözlüğüne ekle.
+Portalda yıl başına ~42 tablo var; yukarıdakiler şu an ayrıştırılanlar.
+Yeni bir tablo eklemek için: `inspect` ile düzeni gör → plan tanımla →
+`AYRISTIRICILAR` sözlüğüne ekle.
+
+`T105` yılda ~1,2 MB sıkıştırılmış veri ürettiği için `SON_YIL_TABLOLARI`
+kümesinde: yalnızca en güncel öğretim yılı işleniyor.
 
 ### Ortak yürüyüş
 
-`T028`, `T035`, `T012` ve `M005` aynı "üniversite + birim" düzenini paylaşıyor:
-tür kolonu dolu olan satır yeni bir kurum başlatır, boş olanlar ona ait birimdir.
-Değişen tek şey kolon yerleşimi, o da `TabloPlani` ile tanımlanıyor. `T107`
-üniversite kırılımı taşımadığı için ayrı bir ayrıştırıcı kullanıyor.
+`T028`, `T035`, `T012`, `T022` ve `M005` aynı "üniversite + birim" düzenini
+paylaşıyor: tür kolonu dolu olan satır yeni bir kurum başlatır, boş olanlar ona
+ait birimdir. Değişen tek şey kolon yerleşimi, o da `TabloPlani` ile
+tanımlanıyor. Kalan tablolar üniversite kırılımı taşımadığı veya denormalize
+olduğu için `DuzTabloPlani` üzerinden yürüyor.
 
 ### Otomatik düzen çözümleme
 
