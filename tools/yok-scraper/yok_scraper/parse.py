@@ -547,6 +547,32 @@ def ayristir_lisansustu(yol: Path, donem: str) -> list[dict]:
     return universite_bloklari(yol, donem, LISANSUSTU_PLANI)
 
 
+# T102: öğrenci sayıları il ve ilçelere göre. Ölçüm grupları T007 ile
+# birebir aynı (öğrenim düzeyi x öğretim türü); fark, satırların yaş değil
+# üniversite+birim olması. Birim satırındaki şehir kolonu ilçeyi taşıyor.
+IL_ILCE_OGRENCI_PLANI = TabloPlani(
+    baslik_anahtarlari=["ÖRGÜN", "İKİNCİ", "UZAKTAN", "AÇIK",
+                        "ÖRGÜN", "İKİNCİ", "UZAKTAN", "AÇIK",
+                        "ÖRGÜN", "İKİNCİ", "UZAKTAN",
+                        "ÖRGÜN"],
+    olcumler=[
+        Olcum("onlisans_orgun", 3),       Olcum("onlisans_ikinci", 6),
+        Olcum("onlisans_uzaktan", 9),     Olcum("onlisans_acik", 12),
+        Olcum("lisans_orgun", 16),        Olcum("lisans_ikinci", 19),
+        Olcum("lisans_uzaktan", 22),      Olcum("lisans_acik", 25),
+        Olcum("yuksek_lisans_orgun", 29), Olcum("yuksek_lisans_ikinci", 32),
+        Olcum("yuksek_lisans_uzaktan", 35),
+        Olcum("doktora_orgun", 39),
+        Olcum("toplam", 43),
+    ],
+)
+
+
+def ayristir_il_ilce_ogrenci(yol: Path, donem: str) -> list[dict]:
+    """T102 — öğrenci sayıları, il/ilçe ve öğretim türü kırılımında."""
+    return universite_bloklari(yol, donem, IL_ILCE_OGRENCI_PLANI)
+
+
 def ayristir_unvan(yol: Path, donem: str) -> list[dict]:
     """T028 (tüm öğretim elemanları) ve T035 (yabancı uyruklu) — aynı düzen."""
     return universite_bloklari(yol, donem, UNVAN_PLANI)
@@ -643,6 +669,36 @@ def ayristir_yas(yol: Path, donem: str) -> list[dict]:
     return ayristir_duz_tablo(yol, donem, YAS_PLANI)
 
 
+# T003: eğitim birimlerine göre öğrenci VE öğretim elemanı. Satırlar
+# üniversite değil BİRİM TÜRÜ (fakülte, meslek yüksekokulu, enstitü…).
+# İki veri grubunu yan yana veren tek tablo; birim türü bazında öğretim
+# elemanı başına öğrenci oranı buradan çıkıyor.
+BIRIM_TURU_PLANI = DuzTabloPlani(
+    kategori_adi="birim_turu",
+    # T017/T019 gibi hiyerarşik: girinti 2 = birim türü (FAKÜLTE),
+    # girinti 4 = tek tek birim adları. Her seviye ayrı ayrı ülke toplamına
+    # eşit; seviyeler toplanmamalı.
+    hiyerarsik=True,
+    baslik_anahtarlari=["YENİ KAYIT", "OKUYAN", "YENİ KAYIT", "OKUYAN",
+                        "YENİ KAYIT", "OKUYAN",
+                        "PROFESÖR", "DOÇENT", "DOKTOR", "ÖĞRETİM GÖREVLİSİ",
+                        "ARAŞTIRMA", "TOPLAM"],
+    olcumler=[
+        Olcum("onlisans_lisans_yeni_kayit", 2), Olcum("onlisans_lisans", 5),
+        Olcum("yuksek_lisans_yeni_kayit", 8),   Olcum("yuksek_lisans", 11),
+        Olcum("doktora_yeni_kayit", 14),        Olcum("doktora", 17),
+        Olcum("profesor", 21),                  Olcum("docent", 24),
+        Olcum("doktor_ogretim_uyesi", 27),      Olcum("ogretim_gorevlisi", 30),
+        Olcum("arastirma_gorevlisi", 33),       Olcum("ogretim_elemani", 36),
+    ],
+)
+
+
+def ayristir_birim_turu(yol: Path, donem: str) -> list[dict]:
+    """T003 — eğitim birimlerine göre öğrenci ve öğretim elemanı sayıları."""
+    return ayristir_duz_tablo(yol, donem, BIRIM_TURU_PLANI)
+
+
 def ayristir_uyruk(yol: Path, donem: str) -> list[dict]:
     """T201 — yabancı uyruklu öğretim elemanları, uyruğuna göre."""
     return ayristir_duz_tablo(yol, donem, UYRUK_PLANI)
@@ -665,6 +721,8 @@ AYRISTIRICILAR = {
     "T017": (ayristir_egitim_alani,   "Lisans öğrenci — eğitim alanına göre"),
     "T019": (ayristir_egitim_alani,   "Önlisans öğrenci — eğitim alanına göre"),
     "T007": (ayristir_yas,            "Öğrenci — yaş, öğrenim düzeyi ve öğretim türü"),
+    "T102": (ayristir_il_ilce_ogrenci, "Öğrenci — il/ilçe ve öğretim türü"),
+    "T003": (ayristir_birim_turu,     "Birim türüne göre öğrenci ve öğretim elemanı"),
 }
 
 
@@ -710,6 +768,7 @@ PLANLAR = {
     "T028": UNVAN_PLANI, "T035": UNVAN_PLANI,
     "T012": OGRENCI_PLANI, "M005": MEZUN_PLANI,
     "T022": LISANSUSTU_PLANI,
+    "T102": IL_ILCE_OGRENCI_PLANI,
 }
 
 

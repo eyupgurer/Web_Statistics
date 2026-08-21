@@ -35,6 +35,8 @@ KOLEKSIYON_ONEKI = {
     "T017": "YOI_egitim_alani_lisans",
     "T019": "YOI_egitim_alani_onlisans",
     "T007": "YOI_yas_ogretim_turu",
+    "T102": "YOI_ogrenci_il_ilce",
+    "T003": "YOI_birim_turu_ozet",
 }
 
 # Uygulamanın filtrelediği alanlar. T107'de üniversite kırılımı yok.

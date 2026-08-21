@@ -22,6 +22,7 @@ namespace YokIstatistikWeb.Controllers
         {
             var yil = IstatistikServisi.YilDogrula(year);
             var veriler = _servis.SehirDagilimi(yil);
+            ViewBag.SehirOgrenci = _servis.SehirOgrenci(yil);
 
             _logger.LogInformation("{Yil}: {Sayi} şehir için veri hazırlandı", yil, veriler.Count);
 

@@ -318,6 +318,34 @@ namespace YokIstatistikWeb.Services
                     .Find(Builders<YasKayit>.Filter.Empty)
                     .ToList();
 
+        /// <summary>T003 — birim türüne göre öğrenci ve öğretim elemanı (seviye 1).</summary>
+        public List<BirimTuruKayit> BirimTurleri(string yil, int seviye = 1) =>
+            _context.Koleksiyon<BirimTuruKayit>(MongoDbContext.BirimTuruOzet, YilDogrula(yil))
+                    .Find(Builders<BirimTuruKayit>.Filter.Eq(b => b.seviye, seviye))
+                    .ToList()
+                    .Where(b => b.Ogrenci > 0 || (b.ogretim_elemani_toplam ?? 0) > 0)
+                    .OrderByDescending(b => b.Ogrenci)
+                    .ToList();
+
+        /// <summary>T102 — şehir bazlı öğrenci toplamları (haritada kullanılıyor).</summary>
+        public Dictionary<string, int> SehirOgrenci(string yil)
+        {
+            try
+            {
+                return _context.Koleksiyon<IlIlceOgrenci>(MongoDbContext.OgrenciIlIlce, YilDogrula(yil))
+                    .Find(Builders<IlIlceOgrenci>.Filter.Empty)
+                    .ToList()
+                    .Where(u => !string.IsNullOrWhiteSpace(u.sehir))
+                    .GroupBy(u => u.sehir)
+                    .ToDictionary(g => g.Key, g => g.Sum(u => u.toplam_toplam ?? 0));
+            }
+            catch (Exception hata)
+            {
+                _logger.LogError(hata, "{Yil} şehir öğrenci verisi okunamadı", yil);
+                return new Dictionary<string, int>();
+            }
+        }
+
         public List<AkademikBirimSayisi> AkademikBirimler(string yil) =>
             _context.Koleksiyon<AkademikBirimSayisi>(MongoDbContext.AkademikBirim, YilDogrula(yil))
                     .Find(Builders<AkademikBirimSayisi>.Filter.Empty)

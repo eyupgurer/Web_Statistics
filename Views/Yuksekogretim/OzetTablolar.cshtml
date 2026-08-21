@@ -32,6 +32,54 @@
     }
     else
     {
+        // else bloğunun içi zaten kod bağlamı; @{ } gerekmiyor
+        var birimTurleri = ViewBag.BirimTurleri as List<YokIstatistikWeb.Models.BirimTuruKayit> ?? new();
+
+        if (birimTurleri.Any())
+        {
+            <div class="card mb-4">
+                <div class="kart-baslik">
+                    <div class="card-title">Birim türüne göre öğrenci ve öğretim elemanı</div>
+                    <div class="kart-alt">
+                        İki veri grubunu yan yana veren tek tablo; oran birim türleri arasında belirgin farklılaşıyor
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Birim türü</th>
+                            <th class="text-end">Öğrenci</th>
+                            <th class="text-end">Öğretim elemanı</th>
+                            <th class="text-end">Öğr. elemanı başına öğrenci</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var b in birimTurleri)
+                        {
+                            <tr>
+                                <td style="font-weight:500;">@b.birim_turu</td>
+                                <td class="text-end num">@b.Ogrenci.ToString("N0")</td>
+                                <td class="text-end num" style="color:var(--metin-ikincil);">
+                                    @((b.ogretim_elemani_toplam ?? 0).ToString("N0"))
+                                </td>
+                                <td class="text-end num" style="font-weight:600;">
+                                    @(b.OgrenciBasina is { } o ? o.ToString("N1") : "—")
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-body pt-0" style="font-size:11.5px; color:var(--metin-soluk); line-height:1.55;">
+                    Enstitülerdeki oran yanıltıcıdır: enstitülerin kendi öğretim elemanı
+                    kadrosu yoktur, dersleri fakültelerde kadrolu öğretim üyeleri verir.
+                    Aynı şekilde açıköğretim fakülteleri milyonlarca öğrenciyi çok az
+                    kadroyla yürüttüğü için fakülte ortalamasını yukarı çeker.
+                </div>
+            </div>
+        }
+
         <div class="row g-4">
             <div class="col-lg-7">
                 <div class="card">

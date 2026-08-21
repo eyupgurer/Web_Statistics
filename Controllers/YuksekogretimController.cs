@@ -311,6 +311,7 @@ namespace YokIstatistikWeb.Controllers
         {
             var yil = IstatistikServisi.YilDogrula(year);
             OrtakVeriyiDoldur(yil);
+            ViewBag.BirimTurleri = _servis.BirimTurleri(yil);
             return View(_servis.AkademikBirimler(yil));
         }
     }
