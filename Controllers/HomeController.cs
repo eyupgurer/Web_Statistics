@@ -35,8 +35,6 @@ namespace YokIstatistikWeb.Controllers
             return View(model);
         }
 
-        public IActionResult Privacy() => View();
-
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {

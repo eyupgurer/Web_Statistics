@@ -10,17 +10,17 @@ namespace YokIstatistikWeb.Models
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
+        public string Id { get; set; } = "";
 
         /// <summary>Kalıcı ve okunabilir kurum kimliği (URL'lerde kullanılıyor).</summary>
         public string? slug { get; set; }
 
-        public string universite { get; set; }
+        public string universite { get; set; } = "";
         public string? universite_en { get; set; }
-        public string tur { get; set; }
-        public string sehir { get; set; }
+        public string tur { get; set; } = "";
+        public string sehir { get; set; } = "";
 
-        public List<Birim> birimler { get; set; }
+        public List<Birim> birimler { get; set; } = new();
 
         // Üniversite satırının YÖK'teki resmî toplamları. Birim satırlarının
         // toplamı kaynak verideki tekrar/eksik kayıtlar yüzünden bazı yıllarda
@@ -29,6 +29,6 @@ namespace YokIstatistikWeb.Models
         public int? toplam_kadin { get; set; }
         public int? toplam_toplam { get; set; }
 
-        public string yil { get; set; }
+        public string yil { get; set; } = "";
     }
 }

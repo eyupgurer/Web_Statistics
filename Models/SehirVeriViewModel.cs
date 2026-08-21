@@ -2,10 +2,10 @@
 {
     public class SehirVeriViewModel
     {
-        public string Sehir { get; set; }
+        public string Sehir { get; set; } = "";
         public int Toplam { get; set; }
 
-        public string ISOCode => Sehir.ToUpper() switch
+        public string? ISOCode => Sehir.ToUpper() switch
         {
             "ADANA" => "TR-01",
             "ADIYAMAN" => "TR-02",

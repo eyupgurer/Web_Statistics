@@ -29,7 +29,6 @@
     var erkek = kurum.toplam_erkek ?? 0;
     var kadin = kurum.toplam_kadin ?? 0;
 
-    string Yuzde(double d) => d.ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 <div class="page-header">
@@ -113,7 +112,7 @@
                             <span style="font-size:12.5px; width:150px; flex-shrink:0;">@u.Ad</span>
                             <div class="cubuk" style="flex-grow:1; height:20px; border-radius:3px;">
                                 <div class="cubuk-dolu"
-                                     style="width:@Yuzde((double)t / enYuksekUnvan * 100)%; background:var(--seri-1); border-radius:3px;"></div>
+                                     style="width:@Bicim.Css((double)t / enYuksekUnvan * 100)%; background:var(--seri-1); border-radius:3px;"></div>
                             </div>
                             <span class="num" style="font-size:12.5px; font-weight:600; width:52px; text-align:right; flex-shrink:0;">
                                 @t.ToString("N0")
@@ -140,11 +139,11 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between mb-1" style="font-size:12.5px;">
                                 <span>@u.Ad</span>
-                                <span class="num" style="color:var(--metin-ikincil);">%@Yuzde((double)u.Kadin / t * 100) kadın</span>
+                                <span class="num" style="color:var(--metin-ikincil);">%@Bicim.Yuzde((double)u.Kadin / t * 100) kadın</span>
                             </div>
                             <div class="yigin" style="height:14px;">
-                                <div style="width:@Yuzde((double)u.Erkek / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
-                                <div style="width:@Yuzde((double)u.Kadin / t * 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
+                                <div style="width:@Bicim.Css((double)u.Erkek / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
+                                <div style="width:@Bicim.Css((double)u.Kadin / t * 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
                             </div>
                         </div>
                     }
@@ -197,8 +196,8 @@
                                     <span class="num" style="font-weight:600;">@t.ToString("N0")</span>
                                 </div>
                                 <div class="yigin" style="height:14px;">
-                                    <div style="width:@Yuzde((double)e / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
-                                    <div style="width:@Yuzde((double)k / t * 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
+                                    <div style="width:@Bicim.Css((double)e / t * 100)%; background:var(--seri-1); border-radius:3px 0 0 3px;"></div>
+                                    <div style="width:@Bicim.Css((double)k / t * 100)%; background:var(--seri-2); border-radius:0 3px 3px 0;"></div>
                                 </div>
                                 <div class="num d-flex justify-content-between" style="font-size:11px; color:var(--metin-soluk); margin-top:4px;">
                                     <span>E @e.ToString("N0")</span>
@@ -241,7 +240,7 @@
                             <div class="card-title">Yabancı uyruklu öğretim elemanı</div>
                             <div class="kart-alt">
                                 Kurumun öğretim elemanlarının
-                                %@Yuzde(toplam > 0 ? (double)yuToplam / toplam * 100 : 0)’i
+                                %@Bicim.Yuzde(toplam > 0 ? (double)yuToplam / toplam * 100 : 0)’i
                             </div>
                         </div>
                         <span class="num" style="font-size:18px; font-weight:600;">@yuToplam.ToString("N0")</span>
@@ -255,7 +254,7 @@
                                 <span style="font-size:12.5px; width:150px; flex-shrink:0;">@u.Ad</span>
                                 <div class="cubuk" style="flex-grow:1; height:16px; border-radius:3px;">
                                     <div class="cubuk-dolu"
-                                         style="width:@Yuzde((double)t / yuEnYuksek * 100)%; background:var(--seri-3); border-radius:3px;"></div>
+                                         style="width:@Bicim.Css((double)t / yuEnYuksek * 100)%; background:var(--seri-3); border-radius:3px;"></div>
                                 </div>
                                 <span class="num" style="font-size:12.5px; font-weight:600; width:40px; text-align:right; flex-shrink:0;">
                                     @t.ToString("N0")

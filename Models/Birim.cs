@@ -5,7 +5,7 @@ namespace YokIstatistikWeb.Models
     [BsonIgnoreExtraElements]
     public class Birim
     {
-        public string birim { get; set; }
+        public string birim { get; set; } = "";
         public string? birim_en { get; set; }
         public int? profesor_erkek { get; set; }
         public int? profesor_kadin { get; set; }
