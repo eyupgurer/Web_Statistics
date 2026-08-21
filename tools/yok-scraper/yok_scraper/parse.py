@@ -415,6 +415,9 @@ class DuzTabloPlani:
     ölçümler geliyor.
     """
     kategori_adi: str = "kategori"
+    # Birden fazla kimlik kolonu taşıyan denormalize tablolar için
+    # (T105: üniversite / birim / program). Boşsa kategori_adi + kolon 0.
+    kimlik_kolonlari: list[tuple[str, int]] = field(default_factory=list)
     olcumler: list[Olcum] = field(default_factory=list)
     baslik_anahtarlari: list[str] = field(default_factory=list)
     # Eğitim alanı tablolarında satırlar hiyerarşik (geniş alan > dar alan >
@@ -471,11 +474,18 @@ def ayristir_duz_tablo(yol: Path, donem: str, plan: DuzTabloPlani) -> list[dict]
         if not ad_tr or ad_tr.startswith(TOPLAM_IZI):
             continue
 
-        kayit = {
-            plan.kategori_adi: ad_tr,
-            f"{plan.kategori_adi}_en": ad_en,
-            "yil": donem,
-        }
+        if plan.kimlik_kolonlari:
+            kayit = {"yil": donem}
+            for alan, kolon in plan.kimlik_kolonlari:
+                kayit[alan] = _iki_dilli(sayfa.cell_value(satir, kolon))[0]
+            if not kayit.get(plan.kimlik_kolonlari[0][0]):
+                continue
+        else:
+            kayit = {
+                plan.kategori_adi: ad_tr,
+                f"{plan.kategori_adi}_en": ad_en,
+                "yil": donem,
+            }
         if plan.hiyerarsik:
             xf = kitap.xf_list[sayfa.cell_xf_index(satir, 0)]
             kayit["seviye"] = xf.alignment.indent_level // 2
@@ -709,6 +719,34 @@ def ayristir_egitim_alani(yol: Path, donem: str) -> list[dict]:
     return ayristir_duz_tablo(yol, donem, EGITIM_ALANI_PLANI)
 
 
+# T105: öğrenim düzeyi ve birimlere göre öğrenci sayıları, PROGRAM düzeyinde.
+# Hiyerarşik değil, denormalize düz tablo: her satır bir program, üniversite
+# ve birim adı her satırda tekrarlıyor. Tüm satırların toplamı ülke geneline
+# eşit, çift sayım yok. Ölçüm grupları T007/T102 ile aynı.
+PROGRAM_PLANI = DuzTabloPlani(
+    kimlik_kolonlari=[("universite", 0), ("birim", 1), ("program", 2)],
+    baslik_anahtarlari=["ÖRGÜN", "İKİNCİ", "UZAKTAN", "AÇIK",
+                        "ÖRGÜN", "İKİNCİ", "UZAKTAN", "AÇIK",
+                        "ÖRGÜN", "İKİNCİ", "UZAKTAN",
+                        "ÖRGÜN"],
+    olcumler=[
+        Olcum("onlisans_orgun", 3),       Olcum("onlisans_ikinci", 6),
+        Olcum("onlisans_uzaktan", 9),     Olcum("onlisans_acik", 12),
+        Olcum("lisans_orgun", 16),        Olcum("lisans_ikinci", 19),
+        Olcum("lisans_uzaktan", 22),      Olcum("lisans_acik", 25),
+        Olcum("yuksek_lisans_orgun", 29), Olcum("yuksek_lisans_ikinci", 32),
+        Olcum("yuksek_lisans_uzaktan", 35),
+        Olcum("doktora_orgun", 39),
+        Olcum("toplam", 43),
+    ],
+)
+
+
+def ayristir_program(yol: Path, donem: str) -> list[dict]:
+    """T105 — program düzeyinde öğrenci sayıları."""
+    return ayristir_duz_tablo(yol, donem, PROGRAM_PLANI)
+
+
 # Tablo kodu -> (ayrıştırıcı, açıklama)
 AYRISTIRICILAR = {
     "T028": (ayristir_unvan,          "Öğretim elemanları — akademik görevlere göre"),
@@ -723,7 +761,14 @@ AYRISTIRICILAR = {
     "T007": (ayristir_yas,            "Öğrenci — yaş, öğrenim düzeyi ve öğretim türü"),
     "T102": (ayristir_il_ilce_ogrenci, "Öğrenci — il/ilçe ve öğretim türü"),
     "T003": (ayristir_birim_turu,     "Birim türüne göre öğrenci ve öğretim elemanı"),
+    "T105": (ayristir_program,        "Program düzeyinde öğrenci sayıları"),
 }
+
+# Yalnızca en güncel yıl için işlenen tablolar. T105 yılda ~1,2 MB sıkıştırılmış
+# veri üretiyor ve gzip git'te delta sıkışmadığı için her güncellemede tamamı
+# geçmişe kalıcı ekleniyor. Program düzeyinde geçmiş seriye ihtiyaç yok;
+# zaman serisi zaten üniversite düzeyinde mevcut.
+SON_YIL_TABLOLARI = {"T105"}
 
 
 # ---------------------------------------------------------------- doğrulama
@@ -803,6 +848,7 @@ def tumunu_ayristir() -> None:
         return
 
     manifest = json.loads(manifest_yolu.read_text(encoding="utf-8"))
+    en_guncel_donem = max((k.get("donem", "") for k in manifest), default="")
     islenen = 0
     basarisiz: list[tuple[str, str, str]] = []
 
@@ -813,6 +859,8 @@ def tumunu_ayristir() -> None:
 
         if tablo_kodu not in AYRISTIRICILAR:
             continue   # bu tablo için henüz ayrıştırıcı yazılmadı
+        if tablo_kodu in SON_YIL_TABLOLARI and donem != en_guncel_donem:
+            continue
         if not kaynak.exists():
             print(f"  ! bulunamadı: {kaynak}")
             continue

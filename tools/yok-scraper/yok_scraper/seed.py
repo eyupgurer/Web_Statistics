@@ -37,10 +37,11 @@ KOLEKSIYON_ONEKI = {
     "T007": "YOI_yas_ogretim_turu",
     "T102": "YOI_ogrenci_il_ilce",
     "T003": "YOI_birim_turu_ozet",
+    "T105": "YOI_program_ogrenci",
 }
 
 # Uygulamanın filtrelediği alanlar. T107'de üniversite kırılımı yok.
-INDEKSLER = ("slug", "sehir", "tur", "universite")
+INDEKSLER = ("slug", "sehir", "tur", "universite", "program")
 
 
 def koleksiyon_adi(tablo_kodu: str, donem: str) -> str:

@@ -306,6 +306,33 @@ namespace YokIstatistikWeb.Controllers
             return View(_servis.EgitimAlanlari(yil, lisans, seviye));
         }
 
+        [Route("Programlar")]
+        public IActionResult Programlar(string? search, string? program)
+        {
+            // T105 yalnızca en güncel yıl için yükleniyor; yıl seçicisine bağlı değil.
+            var yil = _servis.ProgramVerisiOlanYil();
+            if (yil is null)
+            {
+                OrtakVeriyiDoldur(IstatistikServisi.VarsayilanYil);
+                return View(new ProgramAramaViewModel());
+            }
+
+            OrtakVeriyiDoldur(yil);
+            var model = new ProgramAramaViewModel
+            {
+                Yil = yil,
+                YilGoster = IstatistikServisi.YilGoster(yil),
+                Arama = search,
+                SeciliProgram = program,
+                Programlar = _servis.ProgramOzetleri(yil, search),
+            };
+
+            if (!string.IsNullOrWhiteSpace(program))
+                model.Kurumlar = _servis.ProgramKurumlari(yil, program);
+
+            return View(model);
+        }
+
         [Route("OzetTablolar")]
         public IActionResult OzetTablolar(string? year)
         {

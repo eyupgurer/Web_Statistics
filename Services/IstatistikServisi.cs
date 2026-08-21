@@ -63,6 +63,38 @@ namespace YokIstatistikWeb.Services
 
         private static readonly System.Globalization.CultureInfo TrKultur = new("tr-TR");
 
+        // Türkçe harfler için arama karakter sınıfları. MongoDB'nin "i" bayrağı
+        // yalnızca ASCII katlaması yapıyor: "bilgisayar" araması "BİLGİSAYAR"
+        // ile eşleşmiyor çünkü İ ile i farklı harfler. Ayrıca kullanıcı
+        // genelde şapkasız yazıyor ("muhendislik" -> "MÜHENDİSLİK").
+        private static readonly Dictionary<char, string> AramaSiniflari = new()
+        {
+            ['i'] = "[iıİI]", ['ı'] = "[iıİI]",
+            ['g'] = "[gğGĞ]", ['ğ'] = "[gğGĞ]",
+            ['u'] = "[uüUÜ]", ['ü'] = "[uüUÜ]",
+            ['s'] = "[sşSŞ]", ['ş'] = "[sşSŞ]",
+            ['o'] = "[oöOÖ]", ['ö'] = "[oöOÖ]",
+            ['c'] = "[cçCÇ]", ['ç'] = "[cçCÇ]",
+            ['a'] = "[aâAÂ]", ['â'] = "[aâAÂ]",
+        };
+
+        /// <summary>
+        /// Kullanıcı girdisini Türkçe harf farklarına duyarsız bir regex desenine
+        /// çevirir. Girdi önce kaçırılıyor, sonra harfler sınıflara açılıyor.
+        /// </summary>
+        public static string TurkceAramaDeseni(string metin)
+        {
+            var kacirilmis = System.Text.RegularExpressions.Regex.Escape(metin.Trim());
+            var yapici = new System.Text.StringBuilder(kacirilmis.Length * 4);
+
+            foreach (var harf in kacirilmis)
+            {
+                var kucuk = char.ToLower(harf, TrKultur);
+                yapici.Append(AramaSiniflari.TryGetValue(kucuk, out var sinif) ? sinif : harf.ToString());
+            }
+            return yapici.ToString();
+        }
+
         /// <summary>
         /// "VAKIF MYO" -> "Vakıf MYO". Veri tümü büyük harf geliyor; ekranda
         /// bağırmasın diye başlık biçimine çevriliyor. Türkçe kültür şart:
@@ -89,10 +121,8 @@ namespace YokIstatistikWeb.Services
 
             if (!string.IsNullOrWhiteSpace(arama))
             {
-                // Kullanıcı girdisi regex olarak yorumlanmasın diye kaçırılıyor.
-                var desen = System.Text.RegularExpressions.Regex.Escape(arama.Trim());
                 filtre &= f.Regex(u => u.universite,
-                    new MongoDB.Bson.BsonRegularExpression(desen, "i"));
+                    new MongoDB.Bson.BsonRegularExpression(TurkceAramaDeseni(arama), "i"));
             }
 
             if (!string.IsNullOrWhiteSpace(sehir))
@@ -265,8 +295,8 @@ namespace YokIstatistikWeb.Services
 
             if (!string.IsNullOrWhiteSpace(arama))
             {
-                var desen = System.Text.RegularExpressions.Regex.Escape(arama.Trim());
-                filtre &= f.Regex("universite", new MongoDB.Bson.BsonRegularExpression(desen, "i"));
+                filtre &= f.Regex("universite",
+                    new MongoDB.Bson.BsonRegularExpression(TurkceAramaDeseni(arama), "i"));
             }
             if (!string.IsNullOrWhiteSpace(sehir)) filtre &= f.Eq("sehir", sehir);
             if (!string.IsNullOrWhiteSpace(tur)) filtre &= f.Eq("tur", tur);
@@ -345,6 +375,50 @@ namespace YokIstatistikWeb.Services
                 return new Dictionary<string, int>();
             }
         }
+
+        /// <summary>
+        /// T105 — program düzeyi. Yalnızca en güncel yıl yüklü olduğu için
+        /// veri bulunan yıl aranıp kullanılıyor.
+        /// </summary>
+        public string? ProgramVerisiOlanYil() =>
+            Yillar.FirstOrDefault(y => _context.KoleksiyonVar(MongoDbContext.ProgramOgrenci, y));
+
+        /// <summary>Programları ülke geneli toplamlarıyla, çoktan aza.</summary>
+        public List<ProgramOzeti> ProgramOzetleri(string yil, string? arama, int limit = 60)
+        {
+            var f = Builders<ProgramKayit>.Filter;
+            var filtre = f.Empty;
+            if (!string.IsNullOrWhiteSpace(arama))
+            {
+                filtre = f.Regex("program",
+                    new MongoDB.Bson.BsonRegularExpression(TurkceAramaDeseni(arama), "i"));
+            }
+
+            return _context.Koleksiyon<ProgramKayit>(MongoDbContext.ProgramOgrenci, yil)
+                .Find(filtre).ToList()
+                .GroupBy(p => p.program)
+                .Select(g => new ProgramOzeti
+                {
+                    Program = g.Key,
+                    KurumSayisi = g.Select(x => x.universite).Distinct().Count(),
+                    Toplam = g.Sum(x => x.toplam_toplam ?? 0),
+                    Erkek = g.Sum(x => x.toplam_erkek ?? 0),
+                    Kadin = g.Sum(x => x.toplam_kadin ?? 0),
+                })
+                .Where(p => p.Toplam > 0)
+                .OrderByDescending(p => p.Toplam)
+                .Take(limit)
+                .ToList();
+        }
+
+        /// <summary>Bir programı sunan kurumlar, öğrenci sayısına göre.</summary>
+        public List<ProgramKayit> ProgramKurumlari(string yil, string program) =>
+            _context.Koleksiyon<ProgramKayit>(MongoDbContext.ProgramOgrenci, yil)
+                .Find(Builders<ProgramKayit>.Filter.Eq(p => p.program, program))
+                .ToList()
+                .Where(p => (p.toplam_toplam ?? 0) > 0)
+                .OrderByDescending(p => p.toplam_toplam)
+                .ToList();
 
         public List<AkademikBirimSayisi> AkademikBirimler(string yil) =>
             _context.Koleksiyon<AkademikBirimSayisi>(MongoDbContext.AkademikBirim, YilDogrula(yil))

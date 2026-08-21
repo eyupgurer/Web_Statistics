@@ -49,6 +49,10 @@
                        asp-controller="Yuksekogretim" asp-action="Karsilastir" asp-route-year="@aktifYil">Karşılaştır</a>
                 </li>
                 <li class="nav-item">
+                    <a class="@Etkin(aktifAksiyon == "Programlar")"
+                       asp-controller="Yuksekogretim" asp-action="Programlar">Programlar</a>
+                </li>
+                <li class="nav-item">
                     <a class="@Etkin(aktifAksiyon == "EgitimAlanlari")"
                        asp-controller="Yuksekogretim" asp-action="EgitimAlanlari" asp-route-year="@aktifYil">Eğitim Alanları</a>
                 </li>
