@@ -157,6 +157,9 @@ python3 -m venv .venv
 ./.venv/bin/python -m yok_scraper seed
 ```
 
+Bu adım yalnızca `pymongo` kuruyor. Tarayıcı otomasyonu ve Excel okuyucu
+yalnızca veriyi YÖK'ten yeniden çekerken gerekiyor.
+
 ### 3. Uygulamayı çalıştırın
 
 ```bash
@@ -190,6 +193,7 @@ Yalnızca YÖK yeni bir öğretim yılı yayımladığında gerekir:
 
 ```bash
 cd tools/yok-scraper
+./.venv/bin/pip install -r requirements-veri.txt
 ./.venv/bin/python -m playwright install chromium
 ./.venv/bin/python -m yok_scraper scrape    # ham .xls indir
 ./.venv/bin/python -m yok_scraper parse     # normalize et

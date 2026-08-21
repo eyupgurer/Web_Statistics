@@ -44,7 +44,7 @@ Uygulama **çalışma anında YÖK'e hiç gitmiyor.** Veri yılda bir yayımland
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt
+./.venv/bin/pip install -r requirements-veri.txt
 ./.venv/bin/python -m playwright install chromium
 ```
 
