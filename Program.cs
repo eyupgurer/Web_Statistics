@@ -11,6 +11,7 @@ CultureInfo.DefaultThreadCurrentUICulture = kultur;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddMemoryCache();
 
 // MongoDB yapılandırması
 builder.Services.Configure<MongoDBSettings>(
@@ -37,9 +38,10 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
+app.UseStatusCodePagesWithReExecute("/Home/StatusCode", "?code={0}");
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();

@@ -1,0 +1,41 @@
+name: Uygulama doğrulama
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Derle ve test et
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: .NET bağımlılıklarını yükle
+        run: dotnet restore YokIstatistikWeb.sln
+
+      - name: Release derlemesi
+        run: dotnet build YokIstatistikWeb.sln --configuration Release --no-restore
+
+      - name: .NET testleri
+        run: dotnet test YokIstatistikWeb.sln --configuration Release --no-build
+
+      - name: Python ve veri testleri
+        env:
+          PYTHONPATH: tools/yok-scraper
+        run: python -m unittest discover -s tools/yok-scraper/tests -v

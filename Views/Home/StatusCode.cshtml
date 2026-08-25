@@ -1,0 +1,25 @@
+@{
+    var kod = (int)(ViewBag.StatusCode ?? 404);
+    ViewData["Title"] = kod == 404 ? "Sayfa bulunamadı" : "İstek tamamlanamadı";
+}
+
+<div class="page-header">
+    <div class="container">
+        <div class="ust-etiket">HTTP @kod</div>
+        <h2>@(kod == 404 ? "Sayfa bulunamadı" : "İstek tamamlanamadı")</h2>
+        <p class="lead mb-0">
+            @(kod == 404
+                ? "Aradığınız sayfa kaldırılmış, taşınmış veya hiç var olmamış olabilir."
+                : "İstek beklenen şekilde tamamlanamadı.")
+        </p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-body d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" href="/">Genel bakışa dön</a>
+            <a class="btn btn-outline-secondary" asp-controller="Yuksekogretim" asp-action="Index">Üniversitelere git</a>
+        </div>
+    </div>
+</div>

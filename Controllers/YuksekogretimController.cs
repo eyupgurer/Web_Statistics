@@ -138,9 +138,9 @@ namespace YokIstatistikWeb.Controllers
             {
                 ["ogretim_elemani"] = _servis.GrupVar(MongoDbContext.OgretimElemani, yil),
                 ["yabanci_uyruklu"] = _servis.GrupVar(MongoDbContext.YabanciUyruklu, yil),
-                ["ogrenci"]         = _servis.GrupVar(MongoDbContext.Ogrenci, yil),
-                ["mezun"]           = _servis.GrupVar(MongoDbContext.Mezun, yil),
-                ["ozet"]            = _servis.GrupVar(MongoDbContext.AkademikBirim, yil),
+                ["ogrenci"] = _servis.GrupVar(MongoDbContext.Ogrenci, yil),
+                ["mezun"] = _servis.GrupVar(MongoDbContext.Mezun, yil),
+                ["ozet"] = _servis.GrupVar(MongoDbContext.AkademikBirim, yil),
             };
 
             return View();

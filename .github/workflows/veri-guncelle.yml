@@ -66,7 +66,11 @@ jobs:
           echo "$cikti"
           # 'years' komutu yeni yıl bulduğunda 2 döner ve YENI_YIL= satırı yazar
           if [ "$kod" -eq 2 ]; then
-            yil=$(echo "$cikti" | grep -oE 'YENI_YIL=[0-9,-]+' | cut -d= -f2)
+            yil=$(echo "$cikti" | grep -oE 'YENI_YIL=[0-9,-]+' | cut -d= -f2 || true)
+            if [ -z "$yil" ]; then
+              echo "Komut 2 döndürdü ancak YENI_YIL çıktısı üretmedi."
+              exit 1
+            fi
             echo "yeni_yil=$yil" >> "$GITHUB_OUTPUT"
           elif [ "$kod" -ne 0 ]; then
             echo "Yıl listesi okunamadı (çıkış kodu $kod)"
@@ -125,15 +129,24 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Ham veriyi indir
+        env:
+          YILLAR: ${{ inputs.yillar }}
         run: |
-          if [ -n "${{ inputs.yillar }}" ]; then
-            args=""
-            IFS=',' read -ra yillar <<< "${{ inputs.yillar }}"
+          if [ -n "$YILLAR" ]; then
+            args=()
+            IFS=',' read -ra yillar <<< "$YILLAR"
             for y in "${yillar[@]}"; do
-              args="$args --yil $(echo "$y" | xargs)"
+              y=$(echo "$y" | xargs)
+              if [[ ! "$y" =~ ^20[0-9]{2}-20[0-9]{2}$ ]]; then
+                echo "Geçersiz öğretim yılı: $y"
+                exit 1
+              fi
+              args+=(--yil "$y")
             done
-            echo "Çekilecek yıllar: $args"
-            python -m yok_scraper scrape $args
+            printf 'Çekilecek yıllar:'
+            printf ' %q' "${args[@]}"
+            printf '\n'
+            python -m yok_scraper scrape "${args[@]}"
           else
             python -m yok_scraper scrape
           fi

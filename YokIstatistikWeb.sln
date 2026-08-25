@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36121.58 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YokIstatistikWeb", "YokIstatistikWeb.csproj", "{BC7897EF-D2E2-4A68-A5AE-ADFFB2BB4A78}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YokIstatistikWeb.Tests", "tests\YokIstatistikWeb.Tests\YokIstatistikWeb.Tests.csproj", "{B5E5F4D7-C390-4BFA-8F59-6E87AA26727D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{BC7897EF-D2E2-4A68-A5AE-ADFFB2BB4A78}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BC7897EF-D2E2-4A68-A5AE-ADFFB2BB4A78}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BC7897EF-D2E2-4A68-A5AE-ADFFB2BB4A78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5E5F4D7-C390-4BFA-8F59-6E87AA26727D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5E5F4D7-C390-4BFA-8F59-6E87AA26727D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5E5F4D7-C390-4BFA-8F59-6E87AA26727D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5E5F4D7-C390-4BFA-8F59-6E87AA26727D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

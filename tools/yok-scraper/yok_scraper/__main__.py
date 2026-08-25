@@ -1,6 +1,7 @@
 """YÖK veri pipeline'ı komut satırı arayüzü.
 
 Kullanım:
+    python -m yok_scraper years                  # yeni öğretim yılı var mı kontrol et
     python -m yok_scraper scrape                 # tüm yapılandırılmış yılları indir
     python -m yok_scraper scrape --yil 2025-2026 # tek yıl
     python -m yok_scraper scrape --headed        # tarayıcıyı görünür çalıştır (hata ayıklama)
@@ -25,6 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     alt = ayristirici.add_subparsers(dest="komut", required=True)
 
+    alt.add_parser("years", help="Portalda yeni öğretim yılı var mı kontrol et")
+
     p_scrape = alt.add_parser("scrape", help="Portaldan ham .xls dosyalarını indir")
     p_scrape.add_argument("--yil", action="append", help="Öğretim yılı, ör. 2025-2026 (birden çok kez verilebilir)")
     p_scrape.add_argument("--headed", action="store_true", help="Tarayıcıyı görünür çalıştır")
@@ -40,6 +43,12 @@ def main(argv: list[str] | None = None) -> int:
     p_seed.add_argument("--db", default="YokIstatistikDB")
 
     args = ayristirici.parse_args(argv)
+
+    if args.komut == "years":
+        from .scrape import portaldaki_yillari_oku
+        from .years import sonucu_raporla
+
+        return sonucu_raporla(portaldaki_yillari_oku())
 
     if args.komut == "scrape":
         from .scrape import calistir

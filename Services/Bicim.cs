@@ -10,8 +10,10 @@ namespace YokIstatistikWeb.Services
     /// </summary>
     public static class Bicim
     {
+        private static readonly CultureInfo Turkce = CultureInfo.GetCultureInfo("tr-TR");
+
         /// <summary>Ekranda gösterilecek yüzde: <c>47,2</c></summary>
-        public static string Yuzde(double d) => d.ToString("N1");
+        public static string Yuzde(double d) => d.ToString("N1", Turkce);
 
         /// <summary>Stil özniteliğine yazılacak sayı: <c>47.2</c></summary>
         public static string Css(double d) => d.ToString("F1", CultureInfo.InvariantCulture);

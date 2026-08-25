@@ -44,5 +44,14 @@ namespace YokIstatistikWeb.Controllers
 
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+        [Route("Home/StatusCode")]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult StatusCodePage(int code)
+        {
+            Response.StatusCode = code;
+            ViewBag.StatusCode = code;
+            return View("StatusCode");
+        }
     }
 }

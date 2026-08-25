@@ -181,6 +181,31 @@ def _tarayici_baslat(p, headless: bool):
         return p.chromium.launch(headless=headless, channel="chrome")
 
 
+def portaldaki_yillari_oku() -> list[str]:
+    """Portalın yıl menüsünü okuyup öğretim yıllarını döndürür.
+
+    Tam veri indirme işinden farklı olarak yalnızca ana sayfayı açar; kamu
+    sunucusuna tek sayfa yüklemesi dışında istek göndermez.
+    """
+    from .years import metinden_yillari_cikar
+
+    with sync_playwright() as p:
+        tarayici = _tarayici_baslat(p, headless=True)
+        sayfa = tarayici.new_page()
+        sayfa.set_default_timeout(config.NAV_TIMEOUT_MS)
+        try:
+            if not _portali_ac(sayfa):
+                raise RuntimeError("YÖK istatistik portalı açılamadı")
+            _menu_ac(sayfa, "Yükseköğretim İstatistikleri")
+            metinler = sayfa.locator("body").all_inner_texts()
+            yillar = metinden_yillari_cikar(metinler)
+            if not yillar:
+                raise RuntimeError("Portal yıl menüsünde öğretim yılı bulunamadı")
+            return yillar
+        finally:
+            tarayici.close()
+
+
 def calistir(donemler: list[str] | None = None, headless: bool = True) -> list[IndirilenTablo]:
     """Verilen öğretim yıllarını indirir ve manifest yazar."""
     donemler = donemler or config.YEARS

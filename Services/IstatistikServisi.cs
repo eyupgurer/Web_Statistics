@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using YokIstatistikWeb.Models;
 
@@ -12,11 +14,16 @@ namespace YokIstatistikWeb.Services
     {
         private readonly MongoDbContext _context;
         private readonly ILogger<IstatistikServisi> _logger;
+        private readonly IMemoryCache _onbellek;
 
-        public IstatistikServisi(MongoDbContext context, ILogger<IstatistikServisi> logger)
+        public IstatistikServisi(
+            MongoDbContext context,
+            ILogger<IstatistikServisi> logger,
+            IMemoryCache onbellek)
         {
             _context = context;
             _logger = logger;
+            _onbellek = onbellek;
         }
 
         // Yıl listesi veritabanından okunuyor ve önbelleğe alınıyor: her istekte
@@ -69,13 +76,20 @@ namespace YokIstatistikWeb.Services
         // genelde şapkasız yazıyor ("muhendislik" -> "MÜHENDİSLİK").
         private static readonly Dictionary<char, string> AramaSiniflari = new()
         {
-            ['i'] = "[iıİI]", ['ı'] = "[iıİI]",
-            ['g'] = "[gğGĞ]", ['ğ'] = "[gğGĞ]",
-            ['u'] = "[uüUÜ]", ['ü'] = "[uüUÜ]",
-            ['s'] = "[sşSŞ]", ['ş'] = "[sşSŞ]",
-            ['o'] = "[oöOÖ]", ['ö'] = "[oöOÖ]",
-            ['c'] = "[cçCÇ]", ['ç'] = "[cçCÇ]",
-            ['a'] = "[aâAÂ]", ['â'] = "[aâAÂ]",
+            ['i'] = "[iıİI]",
+            ['ı'] = "[iıİI]",
+            ['g'] = "[gğGĞ]",
+            ['ğ'] = "[gğGĞ]",
+            ['u'] = "[uüUÜ]",
+            ['ü'] = "[uüUÜ]",
+            ['s'] = "[sşSŞ]",
+            ['ş'] = "[sşSŞ]",
+            ['o'] = "[oöOÖ]",
+            ['ö'] = "[oöOÖ]",
+            ['c'] = "[cçCÇ]",
+            ['ç'] = "[cçCÇ]",
+            ['a'] = "[aâAÂ]",
+            ['â'] = "[aâAÂ]",
         };
 
         /// <summary>
@@ -210,8 +224,8 @@ namespace YokIstatistikWeb.Services
 
         private static readonly Dictionary<string, string> TurRenkleri = new()
         {
-            ["DEVLET"]    = "var(--seri-1)",
-            ["VAKIF"]     = "var(--seri-2)",
+            ["DEVLET"] = "var(--seri-1)",
+            ["VAKIF"] = "var(--seri-2)",
             ["VAKIF MYO"] = "var(--seri-3)",
         };
 
@@ -386,29 +400,47 @@ namespace YokIstatistikWeb.Services
         /// <summary>Programları ülke geneli toplamlarıyla, çoktan aza.</summary>
         public List<ProgramOzeti> ProgramOzetleri(string yil, string? arama, int limit = 60)
         {
-            var f = Builders<ProgramKayit>.Filter;
-            var filtre = f.Empty;
+            yil = YilDogrula(yil);
+            var anahtar = $"program-ozet:{yil}:{arama?.Trim().ToLowerInvariant()}:{limit}";
+            if (_onbellek.TryGetValue<List<ProgramOzeti>>(anahtar, out var onbellekteki))
+                return onbellekteki!;
+
+            var asamalar = new List<BsonDocument>();
             if (!string.IsNullOrWhiteSpace(arama))
             {
-                filtre = f.Regex("program",
-                    new MongoDB.Bson.BsonRegularExpression(TurkceAramaDeseni(arama), "i"));
+                asamalar.Add(new BsonDocument("$match", new BsonDocument(
+                    "program", new BsonRegularExpression(TurkceAramaDeseni(arama), "i"))));
             }
 
-            return _context.Koleksiyon<ProgramKayit>(MongoDbContext.ProgramOgrenci, yil)
-                .Find(filtre).ToList()
-                .GroupBy(p => p.program)
-                .Select(g => new ProgramOzeti
+            asamalar.AddRange(
+            [
+                new BsonDocument("$group", new BsonDocument
                 {
-                    Program = g.Key,
-                    KurumSayisi = g.Select(x => x.universite).Distinct().Count(),
-                    Toplam = g.Sum(x => x.toplam_toplam ?? 0),
-                    Erkek = g.Sum(x => x.toplam_erkek ?? 0),
-                    Kadin = g.Sum(x => x.toplam_kadin ?? 0),
-                })
-                .Where(p => p.Toplam > 0)
-                .OrderByDescending(p => p.Toplam)
-                .Take(limit)
+                    ["_id"] = "$program",
+                    ["Universiteler"] = new BsonDocument("$addToSet", "$universite"),
+                    ["Toplam"] = new BsonDocument("$sum", "$toplam_toplam"),
+                    ["Erkek"] = new BsonDocument("$sum", "$toplam_erkek"),
+                    ["Kadin"] = new BsonDocument("$sum", "$toplam_kadin"),
+                }),
+                new BsonDocument("$match", new BsonDocument("Toplam", new BsonDocument("$gt", 0))),
+                new BsonDocument("$sort", new BsonDocument("Toplam", -1)),
+                new BsonDocument("$limit", Math.Max(1, limit)),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    ["_id"] = 0,
+                    ["Program"] = "$_id",
+                    ["KurumSayisi"] = new BsonDocument("$size", "$Universiteler"),
+                    ["Toplam"] = 1,
+                    ["Erkek"] = 1,
+                    ["Kadin"] = 1,
+                }),
+            ]);
+
+            var sonuc = _context.Koleksiyon<ProgramKayit>(MongoDbContext.ProgramOgrenci, yil)
+                .Aggregate<ProgramOzeti>(asamalar.ToArray())
                 .ToList();
+            _onbellek.Set(anahtar, sonuc, TimeSpan.FromMinutes(30));
+            return sonuc;
         }
 
         /// <summary>Bir programı sunan kurumlar, öğrenci sayısına göre.</summary>
@@ -443,6 +475,10 @@ namespace YokIstatistikWeb.Services
         /// </summary>
         public ZamanSerisiViewModel ZamanSerisi()
         {
+            const string anahtar = "zaman-serisi";
+            if (_onbellek.TryGetValue<ZamanSerisiViewModel>(anahtar, out var onbellekteki))
+                return onbellekteki!;
+
             var model = new ZamanSerisiViewModel();
 
             // Yillar en yeniden eskiye sıralı; grafikte eskiden yeniye gerekiyor.
@@ -494,6 +530,7 @@ namespace YokIstatistikWeb.Services
                 model.Yillar.Add(ozet);
             }
 
+            _onbellek.Set(anahtar, model, TimeSpan.FromHours(1));
             return model;
         }
 
